@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/monthly_budget.dart';
 
@@ -45,6 +46,7 @@ class ApiService {
     final response = await http.get(Uri.parse('$_baseUrl/api/budgets'), headers: headers);
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
+      debugPrint('getBudgets raw: ${response.body.substring(0, response.body.length.clamp(0, 2000))}');
       final List<dynamic> data = _extractBudgetList(decoded);
       return data.map((b) => MonthlyBudget.fromJson(b)).toList();
     }
@@ -66,10 +68,10 @@ class ApiService {
     throw Exception('Error guardando presupuesto: ${response.statusCode} - ${response.body}');
   }
 
-  Future<void> deleteBudget(String id) async {
+  Future<void> deleteBudget(String monthSlug) async {
     final headers = await _authHeaders();
     final response = await http.delete(
-      Uri.parse('$_baseUrl/api/budgets?id=$id'),
+      Uri.parse('$_baseUrl/api/budgets?monthSlug=$monthSlug'),
       headers: headers,
     );
     if (response.statusCode != 200) {

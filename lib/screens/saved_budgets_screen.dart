@@ -61,7 +61,19 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              if (budget.id != null) await state.deleteBudget(budget.id!);
+              if (budget.monthSlug == null || budget.monthSlug!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Error: el presupuesto no tiene identificador'),
+                  backgroundColor: kDanger,
+                ));
+                return;
+              }
+              final ok = await state.deleteBudget(budget.monthSlug!);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(ok ? 'Presupuesto eliminado' : 'Error al eliminar'),
+                backgroundColor: ok ? kSuccess : kDanger,
+              ));
             },
             child: const Text('Eliminar', style: TextStyle(color: kDanger)),
           ),

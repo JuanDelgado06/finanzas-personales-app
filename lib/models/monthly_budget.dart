@@ -3,6 +3,7 @@ import 'budget_item.dart';
 class MonthlyBudget {
   final String? id;
   final String monthName;
+  final String? monthSlug;
   final List<BudgetItem> assets;
   final List<BudgetItem> owed;
   final List<dynamic> liabilities; // mix of Liability and CreditCard
@@ -20,6 +21,7 @@ class MonthlyBudget {
   MonthlyBudget({
     this.id,
     required this.monthName,
+    this.monthSlug,
     required this.assets,
     required this.owed,
     required this.liabilities,
@@ -35,6 +37,18 @@ class MonthlyBudget {
     this.authorEmail,
   });
 
+  static String? _parseId(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String && raw.isNotEmpty) return raw;
+    // MongoDB ObjectId serializado como { "$oid": "..." }
+    if (raw is Map) {
+      final oid = raw['\$oid'] ?? raw['oid'];
+      if (oid != null) return oid.toString();
+    }
+    final s = raw.toString();
+    return s.isNotEmpty ? s : null;
+  }
+
   factory MonthlyBudget.fromJson(Map<String, dynamic> json) {
     final rawLiabilities = (json['liabilities'] as List? ?? []);
     final parsedLiabilities = rawLiabilities.map((l) {
@@ -43,8 +57,9 @@ class MonthlyBudget {
     }).toList();
 
     return MonthlyBudget(
-      id: json['_id']?.toString() ?? json['id']?.toString(),
+      id: _parseId(json['_id']) ?? _parseId(json['id']),
       monthName: json['monthName'] ?? '',
+      monthSlug: json['monthSlug']?.toString(),
       assets: (json['assets'] as List? ?? []).map((a) => BudgetItem.fromJson(a)).toList(),
       owed: (json['owed'] as List? ?? []).map((a) => BudgetItem.fromJson(a)).toList(),
       liabilities: parsedLiabilities,

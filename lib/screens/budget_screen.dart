@@ -89,11 +89,25 @@ class BudgetScreen extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: ElevatedButton.icon(
                 onPressed: () => _saveBudget(context, state),
                 icon: const Icon(Icons.cloud_upload_outlined),
                 label: const Text('Guardar presupuesto'),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmReset(context, state),
+                icon: const Icon(Icons.refresh, color: kTextSoft),
+                label: const Text('Nuevo mes', style: TextStyle(color: kTextSoft)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: kLine),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
               ),
             ),
           ),
@@ -110,6 +124,37 @@ class BudgetScreen extends StatelessWidget {
       content: Text(ok ? 'Presupuesto guardado ✓' : 'Error al guardar'),
       backgroundColor: ok ? kSuccess : kDanger,
     ));
+  }
+
+  void _confirmReset(BuildContext context, AppState state) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Nuevo mes', style: TextStyle(color: kTextMain)),
+        content: const Text(
+          '¿Limpiar todos los datos del formulario para empezar un nuevo mes?\n\nLos presupuestos guardados no se eliminarán.',
+          style: TextStyle(color: kTextSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: kTextSoft)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              state.resetForm();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Formulario limpiado para nuevo mes'),
+                backgroundColor: kAccent,
+              ));
+            },
+            child: const Text('Limpiar', style: TextStyle(color: kAccent)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

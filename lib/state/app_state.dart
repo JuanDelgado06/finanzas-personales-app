@@ -198,10 +198,10 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<bool> deleteBudget(String id) async {
+  Future<bool> deleteBudget(String monthSlug) async {
     try {
-      await apiService.deleteBudget(id);
-      savedBudgets.removeWhere((b) => b.id == id);
+      await apiService.deleteBudget(monthSlug);
+      savedBudgets.removeWhere((b) => b.monthSlug == monthSlug);
       notifyListeners();
       return true;
     } catch (e) {
