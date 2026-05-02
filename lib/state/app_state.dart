@@ -209,4 +209,70 @@ class AppState extends ChangeNotifier {
       return false;
     }
   }
+
+  String _budgetMergeKey(MonthlyBudget b) {
+    return [
+      b.monthName.trim().toLowerCase(),
+      b.createdAt,
+      b.totalAssets.toStringAsFixed(2),
+      b.totalLiabilities.toStringAsFixed(2),
+      b.netWorth.toStringAsFixed(2),
+      b.partialNetWorth.toStringAsFixed(2),
+    ].join('|');
+  }
+
+  MonthlyBudget _copyForCurrentUser(MonthlyBudget b) {
+    return MonthlyBudget(
+      monthName: b.monthName,
+      assets: b.assets,
+      owed: b.owed,
+      liabilities: b.liabilities,
+      microExpenses: b.microExpenses,
+      microExpenseCategories: b.microExpenseCategories,
+      totalAssets: b.totalAssets,
+      totalLiabilities: b.totalLiabilities,
+      netWorth: b.netWorth,
+      partialNetWorth: b.partialNetWorth,
+      createdAt: b.createdAt,
+      authorId: authService.currentUser?.uid,
+      authorName: authService.currentUser?.displayName,
+      authorEmail: authService.currentUser?.email,
+    );
+  }
+
+  Future<int> linkAnonymousWithGoogleAndMigrateBudgets() async {
+    final wasAnonymous = authService.currentUser?.isAnonymous ?? false;
+    List<MonthlyBudget> anonymousBudgets = [];
+
+    if (wasAnonymous) {
+      try {
+        anonymousBudgets = await apiService.getBudgets();
+      } catch (e) {
+        debugPrint('No se pudieron cargar presupuestos anonimos: $e');
+      }
+    }
+
+    await authService.linkAnonymousWithGoogle();
+
+    int migrated = 0;
+    if (anonymousBudgets.isNotEmpty) {
+      final currentUserBudgets = await apiService.getBudgets();
+      final existing = currentUserBudgets.map(_budgetMergeKey).toSet();
+
+      for (final b in anonymousBudgets) {
+        final key = _budgetMergeKey(b);
+        if (existing.contains(key)) continue;
+        try {
+          await apiService.saveBudget(_copyForCurrentUser(b));
+          existing.add(key);
+          migrated++;
+        } catch (e) {
+          debugPrint('Error migrando presupuesto anonimo: $e');
+        }
+      }
+    }
+
+    await loadBudgets();
+    return migrated;
+  }
 }

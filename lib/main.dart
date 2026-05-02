@@ -121,7 +121,8 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _showProfileSheet(BuildContext context) {
-    final auth = context.read<AppState>().authService;
+    final appState = context.read<AppState>();
+    final auth = appState.authService;
     final user = auth.currentUser;
     showModalBottomSheet(
       context: context,
@@ -156,7 +157,30 @@ class _HomeShellState extends State<HomeShell> {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(context);
-                    await auth.linkAnonymousWithGoogle();
+                    try {
+                      final migrated = await appState.linkAnonymousWithGoogleAndMigrateBudgets();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            migrated > 0
+                                ? 'Cuenta vinculada. Se migraron $migrated presupuestos.'
+                                : 'Cuenta vinculada correctamente.',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().contains('google-signin-misconfigured')
+                                ? 'No se pudo vincular con Google. Revisa configuracion Firebase (SHA-1/SHA-256).'
+                                : 'No se pudo vincular con Google. Intenta de nuevo.',
+                          ),
+                        ),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.link),
                   label: const Text('Vincular con Google'),

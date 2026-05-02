@@ -14,12 +14,23 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
 
+  String _friendlyError(Object e) {
+    final message = e.toString().toLowerCase();
+    if (message.contains('google-signin-misconfigured') || message.contains('apiexception: 10')) {
+      return 'Google Sign-In no esta configurado en Firebase para Android. Revisa SHA-1/SHA-256 y google-services.json.';
+    }
+    if (message.contains('sign in aborted')) {
+      return 'Inicio de sesion cancelado.';
+    }
+    return 'Error al iniciar sesion. Intenta de nuevo.';
+  }
+
   Future<void> _signInGoogle() async {
     setState(() { _loading = true; _error = null; });
     try {
       await _auth.signInWithGoogle();
     } catch (e) {
-      setState(() => _error = 'Error al iniciar sesión. Intenta de nuevo.');
+      setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
