@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'state/app_state.dart';
@@ -11,6 +12,7 @@ import 'screens/budget_screen.dart';
 import 'screens/micro_expenses_screen.dart';
 import 'screens/charts_screen.dart';
 import 'screens/saved_budgets_screen.dart';
+import 'screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,12 +42,59 @@ class FinanzasApp extends StatelessWidget {
               );
             }
             if (snapshot.hasData) {
-              return const HomeShell();
+              return const _HomeGateway();
             }
             return const LoginScreen();
           },
         ),
       ),
+    );
+  }
+}
+
+class _HomeGateway extends StatefulWidget {
+  const _HomeGateway();
+
+  @override
+  State<_HomeGateway> createState() => _HomeGatewayState();
+}
+
+class _HomeGatewayState extends State<_HomeGateway> {
+  late Future<bool> _checkOnboardingDone;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboardingDone = _getOnboardingStatus();
+  }
+
+  Future<bool> _getOnboardingStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('onboarding_done') ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _checkOnboardingDone,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: kAppBg,
+            body: Center(child: CircularProgressIndicator(color: kAccent)),
+          );
+        }
+        if (snapshot.data == true) {
+          return const HomeShell();
+        }
+        return OnboardingScreen(
+          onComplete: () {
+            setState(() {
+              _checkOnboardingDone = _getOnboardingStatus();
+            });
+          },
+        );
+      },
     );
   }
 }
@@ -62,9 +111,9 @@ class _HomeShellState extends State<HomeShell> {
 
   static const List<_NavItem> _navItems = [
     _NavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Presupuesto'),
-    _NavItem(Icons.coffee_outlined, Icons.coffee, 'Hormiga'),
+    _NavItem(Icons.coffee_outlined, Icons.coffee, 'Gastos diarios'),
     _NavItem(Icons.bar_chart_outlined, Icons.bar_chart, 'Gráficos'),
-    _NavItem(Icons.folder_outlined, Icons.folder, 'Guardados'),
+    _NavItem(Icons.folder_outlined, Icons.folder, 'Historial'),
   ];
 
   static const List<Widget> _screens = [

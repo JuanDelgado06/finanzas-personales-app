@@ -25,6 +25,7 @@ class BudgetScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: _Section(
               title: 'Activos',
+              subtitle: 'Ingresa cuentas, efectivo o ahorro disponible.',
               iconData: Icons.savings_outlined,
               iconColor: kAccent,
               onAdd: state.addAsset,
@@ -41,6 +42,7 @@ class BudgetScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: _Section(
               title: 'Me Deben',
+              subtitle: 'Registra dinero pendiente por cobrar.',
               iconData: Icons.arrow_downward_rounded,
               iconColor: const Color(0xFF22C55E),
               onAdd: state.addOwed,
@@ -57,6 +59,7 @@ class BudgetScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: _Section(
               title: 'Gastos Fijos',
+              subtitle: 'Incluye pagos recurrentes y tarjetas.',
               iconData: Icons.receipt_long_outlined,
               iconColor: kDanger,
               onAddLabel: '+ Gasto',
@@ -258,6 +261,7 @@ class _MonthInputState extends State<_MonthInput> {
 // ── Generic section ───────────────────────────────────────────────────────────
 class _Section extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final IconData iconData;
   final Color iconColor;
   final VoidCallback onAdd;
@@ -268,6 +272,7 @@ class _Section extends StatelessWidget {
 
   const _Section({
     required this.title,
+    this.subtitle,
     required this.iconData,
     required this.iconColor,
     required this.onAdd,
@@ -286,16 +291,25 @@ class _Section extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(iconData, color: iconColor, size: 18),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 15)),
-                const Spacer(),
-                if (onAddExtra != null)
-                  _AddBtn(label: onAddExtraLabel!, onTap: onAddExtra!),
-                const SizedBox(width: 4),
-                _AddBtn(label: onAddLabel, onTap: onAdd),
+                Row(
+                  children: [
+                    Icon(iconData, color: iconColor, size: 18),
+                    const SizedBox(width: 8),
+                    Text(title, style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 15)),
+                    const Spacer(),
+                    if (onAddExtra != null)
+                      _AddBtn(label: onAddExtraLabel!, onTap: onAddExtra!),
+                    const SizedBox(width: 4),
+                    _AddBtn(label: onAddLabel, onTap: onAdd),
+                  ],
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 6),
+                  Text(subtitle!, style: const TextStyle(color: kTextSoft, fontSize: 12)),
+                ],
               ],
             ),
           ),

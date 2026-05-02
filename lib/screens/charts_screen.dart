@@ -34,6 +34,9 @@ class ChartsScreen extends StatelessWidget {
           // Balance card
           _BalanceCard(state: state),
           const SizedBox(height: 16),
+          // Insights card
+          if (sorted.isNotEmpty || fixedItems.isNotEmpty) _InsightsCard(sorted: sorted, fixedItems: fixedItems, state: state),
+          const SizedBox(height: 16),
           if (sorted.isNotEmpty) ...[
             _ChartSection(
               title: 'Gastos Hormiga por Categoría',
@@ -262,6 +265,70 @@ class _LiabilitiesBarChart extends StatelessWidget {
           ),
         ),
       )),
+    );
+  }
+}
+
+// ── Insights card ────────────────────────────────────────────────────────────
+class _InsightsCard extends StatelessWidget {
+  final List<MapEntry<String, double>> sorted;
+  final List<MapEntry<String, double>> fixedItems;
+  final AppState state;
+
+  const _InsightsCard({required this.sorted, required this.fixedItems, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    String? topCategory;
+    double? topCategoryAmount;
+    if (sorted.isNotEmpty) {
+      topCategory = sorted.first.key;
+      topCategoryAmount = sorted.first.value;
+    }
+
+    String? topFixed;
+    double? topFixedAmount;
+    if (fixedItems.isNotEmpty) {
+      topFixed = fixedItems.first.key;
+      topFixedAmount = fixedItems.first.value;
+    }
+
+    String? insight;
+    if (topCategory != null && topCategoryAmount! > 0) {
+      insight = 'Tu categoría con más gasto es $topCategory (${formatCurrencyFull(topCategoryAmount)})';
+    } else if (topFixed != null && topFixedAmount! > 0) {
+      insight = 'Tu gasto fijo más alto es $topFixed (${formatCurrencyFull(topFixedAmount)})';
+    }
+
+    if (insight == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: cardDecoration(borderColor: kAccent.withOpacity(0.4)),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: kAccent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.lightbulb_outline, color: kAccent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Dato clave', style: TextStyle(color: kAccent, fontSize: 11, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(insight, style: const TextStyle(color: kTextMain, fontSize: 13, height: 1.35)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

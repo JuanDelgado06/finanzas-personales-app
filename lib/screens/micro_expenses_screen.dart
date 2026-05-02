@@ -30,15 +30,24 @@ class MicroExpensesScreen extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Gastos Hormiga', style: TextStyle(color: kTextSoft, fontSize: 13)),
+                      const Text('Gastos diarios', style: TextStyle(color: kTextSoft, fontSize: 13)),
                       Text(formatCurrencyFull(total),
                           style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w700, fontSize: 22)),
                     ],
                   ),
                   const Spacer(),
-                  Text('${state.microExpenses.length} items',
+                  Text('${state.microExpenses.length} registros',
                       style: const TextStyle(color: kTextSoft, fontSize: 12)),
                 ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Text(
+                'Registra compras pequenas del dia para evitar fugas de dinero.',
+                style: TextStyle(color: kTextSoft, fontSize: 12),
               ),
             ),
           ),
@@ -50,28 +59,73 @@ class MicroExpensesScreen extends StatelessWidget {
             ),
           ),
           // Items list
-          SliverList.builder(
-            itemCount: state.microExpenses.length,
-            itemBuilder: (context, index) {
-              return _MicroExpenseRow(index: index, state: state);
-            },
-          ),
+          if (state.microExpenses.isEmpty)
+            SliverToBoxAdapter(
+              child: _EmptyMicroState(onAdd: state.addMicroExpense),
+            )
+          else
+            SliverList.builder(
+              itemCount: state.microExpenses.length,
+              itemBuilder: (context, index) {
+                return _MicroExpenseRow(index: index, state: state);
+              },
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: OutlinedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: state.addMicroExpense,
-                icon: const Icon(Icons.add, size: 18, color: kAccent),
-                label: const Text('Agregar gasto', style: TextStyle(color: kAccent)),
-                style: OutlinedButton.styleFrom(
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Agregar gasto diario'),
+                style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  side: const BorderSide(color: kAccent, width: 1.2),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyMicroState extends StatelessWidget {
+  final VoidCallback onAdd;
+  const _EmptyMicroState({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, color: kAccent, size: 18),
+              SizedBox(width: 8),
+              Text('Aun no registras gastos', style: TextStyle(color: kTextMain, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Empieza con 1 o 2 gastos de hoy para ver su impacto en tu balance.',
+            style: TextStyle(color: kTextSoft, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, size: 16, color: kAccent),
+            label: const Text('Crear primer gasto', style: TextStyle(color: kAccent)),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: kAccent),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ],
       ),
     );
