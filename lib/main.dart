@@ -110,15 +110,15 @@ class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
 
   static const List<_NavItem> _navItems = [
-    _NavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Presupuesto'),
     _NavItem(Icons.coffee_outlined, Icons.coffee, 'Gastos diarios'),
+    _NavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Presupuesto'),
     _NavItem(Icons.bar_chart_outlined, Icons.bar_chart, 'Gráficos'),
     _NavItem(Icons.folder_outlined, Icons.folder, 'Historial'),
   ];
 
   static const List<Widget> _screens = [
-    BudgetScreen(),
     MicroExpensesScreen(),
+    BudgetScreen(),
     ChartsScreen(),
     SavedBudgetsScreen(),
   ];

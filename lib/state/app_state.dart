@@ -5,9 +5,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 
 const List<String> kDefaultCategories = [
-  'General', 'Comida', 'Transporte', 'Cafe', 'Snacks', 'Antojos',
-  'Mercado rapido', 'Apps', 'Streaming', 'Hogar', 'Salud',
-  'Mascotas', 'Regalos', 'Otros'
+  'Comida', 'Transporte', 'Mercado', 'Salud', 'Hogar', 'Otros'
 ];
 
 class AppState extends ChangeNotifier {
@@ -132,6 +130,31 @@ class AppState extends ChangeNotifier {
       category: microExpenseCategories.isNotEmpty ? microExpenseCategories.first : 'General',
       paymentMethod: defaultPayment,
     ));
+    notifyListeners();
+  }
+
+  void addMicroExpenseDirect({
+    required double amount,
+    required String category,
+    required String paymentMethod,
+  }) {
+    microExpenses.add(MicroExpense(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      amount: amount,
+      category: category,
+      paymentMethod: paymentMethod,
+    ));
+    notifyListeners();
+  }
+
+  void updateMicroExpenseDirect(int index, {
+    required double amount,
+    required String category,
+    required String paymentMethod,
+  }) {
+    microExpenses[index].amount = amount;
+    microExpenses[index].category = category;
+    microExpenses[index].paymentMethod = paymentMethod;
     notifyListeners();
   }
 
