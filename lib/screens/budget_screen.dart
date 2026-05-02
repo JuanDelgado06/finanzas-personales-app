@@ -168,7 +168,6 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final netFull = formatCurrencyFull(state.netWorth);
     final isPositive = state.netWorth >= 0;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -181,13 +180,18 @@ class _SummaryCard extends StatelessWidget {
             style: const TextStyle(color: kTextSoft, fontSize: 13, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
-          Text(
-            netFull,
-            style: TextStyle(
-              color: isPositive ? kSuccess : kDanger,
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -1,
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOut,
+            builder: (context, value, _) => Text(
+              formatCurrencyFull(value),
+              style: TextStyle(
+                color: isPositive ? kSuccess : kDanger,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -1,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -287,8 +291,16 @@ class _Section extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       decoration: cardDecoration(),
-      child: Column(
-        children: [
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 4, color: iconColor.withOpacity(0.7)),
+              Expanded(
+                child: Column(
+                  children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
             child: Column(
@@ -313,9 +325,14 @@ class _Section extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1, color: kLineSoft),
-          Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 8), child: child),
-        ],
+                  const Divider(height: 1, color: kLineSoft),
+                  Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 8), child: child),
+                ],
+              ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -432,10 +449,11 @@ class _RemoveBtn extends StatelessWidget {
       child: Container(
         width: 36, height: 36,
         decoration: BoxDecoration(
-          color: kDanger.withOpacity(0.1),
+          color: kDanger.withOpacity(0.08),
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: kDanger.withOpacity(0.25)),
         ),
-        child: const Icon(Icons.close, color: kDanger, size: 16),
+        child: const Icon(Icons.delete_outline, color: kDanger, size: 16),
       ),
     );
   }

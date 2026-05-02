@@ -142,29 +142,10 @@ class _HomeShellState extends State<HomeShell> {
         ],
       ),
       body: _screens[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFA050910),
-          border: Border(top: BorderSide(color: kLineSoft)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          selectedItemColor: Colors.white,
-          unselectedItemColor: kTextSoft,
-          type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          items: _navItems.asMap().entries.map((e) {
-            return BottomNavigationBarItem(
-              icon: Icon(e.value.icon),
-              activeIcon: Icon(e.value.activeIcon),
-              label: e.value.label,
-            );
-          }).toList(),
-        ),
+      bottomNavigationBar: _PillNavBar(
+        currentIndex: _currentIndex,
+        items: _navItems,
+        onTap: (i) => setState(() => _currentIndex = i),
       ),
     );
   }
@@ -261,4 +242,67 @@ class _NavItem {
   final IconData activeIcon;
   final String label;
   const _NavItem(this.icon, this.activeIcon, this.label);
+}
+
+class _PillNavBar extends StatelessWidget {
+  final int currentIndex;
+  final List<_NavItem> items;
+  final ValueChanged<int> onTap;
+  const _PillNavBar({required this.currentIndex, required this.items, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFA050910),
+        border: Border(top: BorderSide(color: kLineSoft)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: items.asMap().entries.map((e) {
+              final isActive = e.key == currentIndex;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(e.key),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? kAccent.withOpacity(0.15) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isActive ? e.value.activeIcon : e.value.icon,
+                          color: isActive ? kAccent : kTextSoft,
+                          size: 22,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          e.value.label,
+                          style: TextStyle(
+                            color: isActive ? kAccent : kTextSoft,
+                            fontSize: 11,
+                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
 }

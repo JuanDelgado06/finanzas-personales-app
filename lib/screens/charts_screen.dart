@@ -216,15 +216,29 @@ class _LiabilitiesBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxVal = items.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+    const barColors = [
+      Color(0xFFFF5F7A),
+      Color(0xFF4F8CFF),
+      Color(0xFFA78BFA),
+      Color(0xFF22C55E),
+      Color(0xFFF59E0B),
+      Color(0xFF14B8A6),
+      Color(0xFFEC4899),
+    ];
     final groups = items.asMap().entries.map((e) {
+      final color = barColors[e.key % barColors.length];
       return BarChartGroupData(
         x: e.key,
         barRods: [
           BarChartRodData(
             toY: e.value.value,
-            color: kDanger,
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [color.withOpacity(0.6), color],
+            ),
             width: 16,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
           ),
         ],
       );
