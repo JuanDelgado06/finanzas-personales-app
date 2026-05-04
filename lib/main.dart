@@ -109,6 +109,14 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppState>().loadAndAutoApply();
+    });
+  }
+
   static const List<_NavItem> _navItems = [
     _NavItem(Icons.coffee_outlined, Icons.coffee, 'Gastos diarios'),
     _NavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Presupuesto'),

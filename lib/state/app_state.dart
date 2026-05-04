@@ -180,6 +180,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Apply a saved budget into the active form ─────────────────────────────
+  void applyBudget(MonthlyBudget budget) {
+    monthName = budget.monthName;
+    assets = List.from(budget.assets);
+    owed = List.from(budget.owed);
+    liabilities = List.from(budget.liabilities);
+    microExpenses = List.from(budget.microExpenses);
+    if (budget.microExpenseCategories.isNotEmpty) {
+      microExpenseCategories = List.from(budget.microExpenseCategories);
+    }
+    notifyListeners();
+  }
+
   // ── API ───────────────────────────────────────────────────────────────────
   Future<void> loadBudgets() async {
     loadingBudgets = true;
@@ -192,6 +205,16 @@ class AppState extends ChangeNotifier {
       loadingBudgets = false;
       notifyListeners();
     }
+  }
+
+  /// Carga los presupuestos y aplica automáticamente el más reciente.
+  Future<void> loadAndAutoApply() async {
+    await loadBudgets();
+    if (savedBudgets.isEmpty) return;
+    // Ordenar por createdAt descendente y tomar el primero
+    final sorted = List<MonthlyBudget>.from(savedBudgets)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    applyBudget(sorted.first);
   }
 
   Future<bool> saveBudget() async {
