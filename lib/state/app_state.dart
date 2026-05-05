@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../models/budget_item.dart';
 import '../models/monthly_budget.dart';
 import '../services/api_service.dart';
@@ -23,6 +25,11 @@ class AppState extends ChangeNotifier {
   // Saved budgets
   List<MonthlyBudget> savedBudgets = [];
   bool loadingBudgets = false;
+
+  // Auto-save state
+  bool isSaving = false;
+  bool lastSaveOk = true;
+  Timer? _saveDebounce;
 
   AppState({required this.authService}) {
     apiService = ApiService(getIdToken: authService.getIdToken);
@@ -145,6 +152,7 @@ class AppState extends ChangeNotifier {
       paymentMethod: paymentMethod,
     ));
     notifyListeners();
+    _scheduleSave();
   }
 
   void updateMicroExpenseDirect(int index, {
@@ -156,6 +164,7 @@ class AppState extends ChangeNotifier {
     microExpenses[index].category = category;
     microExpenses[index].paymentMethod = paymentMethod;
     notifyListeners();
+    _scheduleSave();
   }
 
   void updateMicroExpense(int index, {double? amount, String? category, String? paymentMethod}) {
@@ -165,7 +174,67 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeMicroExpense(int index) { microExpenses.removeAt(index); notifyListeners(); }
+  void removeMicroExpense(int index) {
+    microExpenses.removeAt(index);
+    notifyListeners();
+    _scheduleSave();
+  }
+
+  // ── Auto-save helpers ─────────────────────────────────────────────────────
+  static final _monthFormatter = DateFormat('MMMM yyyy', 'es_CO');
+
+  String get _currentMonthName {
+    final now = DateTime.now();
+    final raw = _monthFormatter.format(now);
+    return raw[0].toUpperCase() + raw.substring(1);
+  }
+
+  void _ensureMonthName() {
+    if (monthName.trim().isEmpty) {
+      monthName = _currentMonthName;
+      notifyListeners();
+    }
+  }
+
+  void _scheduleSave() {
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(seconds: 2), _autoSave);
+  }
+
+  Future<void> _autoSave() async {
+    _ensureMonthName();
+    isSaving = true;
+    notifyListeners();
+    try {
+      await apiService.saveBudget(MonthlyBudget(
+        monthName: monthName,
+        assets: assets,
+        owed: owed,
+        liabilities: liabilities,
+        microExpenses: microExpenses,
+        microExpenseCategories: microExpenseCategories,
+        totalAssets: totalAssets,
+        totalLiabilities: totalLiabilities,
+        netWorth: netWorth,
+        partialNetWorth: partialNetWorth,
+        createdAt: DateTime.now().toIso8601String(),
+        authorId: authService.currentUser?.uid,
+        authorName: authService.currentUser?.displayName,
+        authorEmail: authService.currentUser?.email,
+      ));
+      lastSaveOk = true;
+      apiService.getBudgets().then((list) {
+        savedBudgets = list;
+        notifyListeners();
+      }).catchError((_) {});
+    } catch (e) {
+      debugPrint('Auto-save error: $e');
+      lastSaveOk = false;
+    } finally {
+      isSaving = false;
+      notifyListeners();
+    }
+  }
 
   void addCategory(String name) {
     final trimmed = name.trim();

@@ -70,7 +70,60 @@ class MicroExpensesScreen extends StatelessWidget {
               ),
             ),
           ),
+          SliverToBoxAdapter(child: _SaveStatusBar(state: state)),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Save status bar ───────────────────────────────────────────────────────────
+class _SaveStatusBar extends StatelessWidget {
+  final AppState state;
+  const _SaveStatusBar({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.microExpenses.isEmpty) return const SizedBox.shrink();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: state.isSaving
+          ? _statusRow(
+              key: const ValueKey('saving'),
+              icon: const SizedBox(
+                width: 12, height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: kTextSoft),
+              ),
+              label: 'Guardando…',
+              color: kTextSoft,
+            )
+          : state.lastSaveOk
+              ? _statusRow(
+                  key: const ValueKey('ok'),
+                  icon: const Icon(Icons.check_circle_outline, color: kSuccess, size: 14),
+                  label: 'Guardado',
+                  color: kSuccess,
+                )
+              : _statusRow(
+                  key: const ValueKey('err'),
+                  icon: const Icon(Icons.error_outline, color: kDanger, size: 14),
+                  label: 'Error al guardar',
+                  color: kDanger,
+                ),
+    );
+  }
+
+  Widget _statusRow({required Key key, required Widget icon, required String label, required Color color}) {
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          icon,
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: color, fontSize: 12)),
         ],
       ),
     );
