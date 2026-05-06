@@ -37,8 +37,55 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Calculated totals ──────────────────────────────────────────────────────
-  double get totalAssets =>
+  double get _baseAssets =>
       [...assets, ...owed].fold(0, (sum, i) => sum + i.amount);
+
+  String _normalizePaymentMethod(String value) => value.trim().toLowerCase();
+
+  Map<String, double> get availableAmountByItemId {
+    final remainingById = <String, double>{};
+    final itemsByMethod = <String, List<BudgetItem>>{};
+
+    for (final item in [...assets, ...owed]) {
+      remainingById[item.id] = item.amount;
+      final key = _normalizePaymentMethod(item.name);
+      if (key.isEmpty) continue;
+      itemsByMethod.putIfAbsent(key, () => <BudgetItem>[]).add(item);
+    }
+
+    for (final expense in microExpenses) {
+      final key = _normalizePaymentMethod(expense.paymentMethod);
+      if (key.isEmpty) continue;
+      final bucket = itemsByMethod[key];
+      if (bucket == null || bucket.isEmpty) continue;
+
+      var remainingExpense = expense.amount;
+      for (final item in bucket) {
+        if (remainingExpense <= 0) break;
+        final available = remainingById[item.id] ?? 0;
+        if (available <= 0) continue;
+        final applied = remainingExpense <= available ? remainingExpense : available;
+        remainingById[item.id] = available - applied;
+        remainingExpense -= applied;
+      }
+    }
+
+    return remainingById;
+  }
+
+  double get _microExpensesCoveredByAssets {
+    final remainingTotal = availableAmountByItemId.values.fold(0.0, (sum, value) => sum + value);
+    final covered = _baseAssets - remainingTotal;
+    return covered > 0 ? covered : 0;
+  }
+
+  double get _uncoveredMicroExpenses {
+    final remaining = totalMicroExpenses - _microExpensesCoveredByAssets;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  double get totalAssets =>
+      availableAmountByItemId.values.fold(0.0, (sum, value) => sum + value);
 
   double get totalMicroExpenses =>
       microExpenses.fold(0, (sum, m) => sum + m.amount);
@@ -55,8 +102,8 @@ class AppState extends ChangeNotifier {
         return sum;
       });
 
-  double get totalLiabilities => totalLiabilitiesWithoutMicro + totalMicroExpenses;
-  double get partialLiabilities => partialLiabilitiesWithoutMicro + totalMicroExpenses;
+  double get totalLiabilities => totalLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
+  double get partialLiabilities => partialLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
   double get netWorth => totalAssets - totalLiabilities;
   double get partialNetWorth => totalAssets - partialLiabilities;
   double get savingsGoal => totalAssets - partialLiabilities;

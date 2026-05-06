@@ -12,6 +12,7 @@ class BudgetScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final availableById = state.availableAmountByItemId;
     return Scaffold(
       backgroundColor: kAppBg,
       body: CustomScrollView(
@@ -38,6 +39,7 @@ class BudgetScreen extends StatelessWidget {
                       (e) => _AssetRow(
                         index: e.key,
                         item: e.value,
+                        availableAmount: availableById[e.value.id] ?? e.value.amount,
                         onRemove: () => state.removeAsset(e.key),
                         onChanged: (name, amount) => state.updateAsset(
                           e.key,
@@ -65,6 +67,7 @@ class BudgetScreen extends StatelessWidget {
                       (e) => _AssetRow(
                         index: e.key,
                         item: e.value,
+                        availableAmount: availableById[e.value.id] ?? e.value.amount,
                         onRemove: () => state.removeOwed(e.key),
                         onChanged: (name, amount) =>
                             state.updateOwed(e.key, name: name, amount: amount),
@@ -336,8 +339,8 @@ class _MonthInputState extends State<_MonthInput> {
   }
 }
 
-// ── Generic section ───────────────────────────────────────────────────────────
-class _Section extends StatelessWidget {
+// ── Generic section (accordion) ──────────────────────────────────────────────
+class _Section extends StatefulWidget {
   final String title;
   final String? subtitle;
   final IconData iconData;
@@ -347,6 +350,7 @@ class _Section extends StatelessWidget {
   final VoidCallback? onAddExtra;
   final String? onAddExtraLabel;
   final Widget child;
+  final bool initiallyExpanded;
 
   const _Section({
     required this.title,
@@ -358,7 +362,21 @@ class _Section extends StatelessWidget {
     this.onAddExtra,
     this.onAddExtraLabel,
     required this.child,
+    this.initiallyExpanded = true,
   });
+
+  @override
+  State<_Section> createState() => _SectionState();
+}
+
+class _SectionState extends State<_Section> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -367,64 +385,95 @@ class _Section extends StatelessWidget {
       decoration: cardDecoration(),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(width: 4, color: iconColor.withOpacity(0.7)),
-              Expanded(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(iconData, color: iconColor, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                title,
-                                style: const TextStyle(
-                                  color: kTextMain,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (onAddExtra != null)
-                                _AddBtn(
-                                  label: onAddExtraLabel!,
-                                  onTap: onAddExtra!,
-                                ),
-                              const SizedBox(width: 4),
-                              _AddBtn(label: onAddLabel, onTap: onAdd),
-                            ],
-                          ),
-                          if (subtitle != null) ...[
-                            const SizedBox(height: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(width: 4, color: widget.iconColor.withOpacity(0.7)),
+            Expanded(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            PhosphorIcon(widget.iconData, color: widget.iconColor, size: 18),
+                            const SizedBox(width: 8),
                             Text(
-                              subtitle!,
+                              widget.title,
                               style: const TextStyle(
-                                color: kTextSoft,
-                                fontSize: 12,
+                                color: kTextMain,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (widget.onAddExtra != null)
+                              _AddBtn(
+                                label: widget.onAddExtraLabel!,
+                                onTap: widget.onAddExtra!,
+                              ),
+                            const SizedBox(width: 4),
+                            _AddBtn(label: widget.onAddLabel, onTap: widget.onAdd),
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () => setState(() => _expanded = !_expanded),
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: kSurfaceHover,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: kLineSoft),
+                                ),
+                                child: AnimatedRotation(
+                                  turns: _expanded ? 0 : -0.25,
+                                  duration: const Duration(milliseconds: 180),
+                                  child: const PhosphorIcon(
+                                    PhosphorIconsLight.caretDown,
+                                    color: kTextSoft,
+                                    size: 16,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
+                        ),
+                        if (widget.subtitle != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            widget.subtitle!,
+                            style: const TextStyle(
+                              color: kTextSoft,
+                              fontSize: 12,
+                            ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                    const Divider(height: 1, color: kLineSoft),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                      child: child,
+                  ),
+                  AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 220),
+                    crossFadeState: _expanded
+                        ? CrossFadeState.showFirst
+                        : CrossFadeState.showSecond,
+                    firstChild: Column(
+                      children: [
+                        const Divider(height: 1, color: kLineSoft),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                          child: widget.child,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                    secondChild: const SizedBox.shrink(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -614,40 +663,57 @@ class _RemoveBtn extends StatelessWidget {
 class _AssetRow extends StatelessWidget {
   final int index;
   final BudgetItem item;
+  final double availableAmount;
   final VoidCallback onRemove;
   final void Function(String name, double amount) onChanged;
 
   const _AssetRow({
     required this.index,
     required this.item,
+    required this.availableAmount,
     required this.onRemove,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final spentFromThisAsset = item.amount - availableAmount;
+    final hasSpend = spentFromThisAsset > 0.009;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 5,
-            child: _NameInput(
-              initial: item.name,
-              hint: 'Nombre',
-              onChanged: (v) => onChanged(v, item.amount),
-            ),
+          Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: _NameInput(
+                  initial: item.name,
+                  hint: 'Nombre',
+                  onChanged: (v) => onChanged(v, item.amount),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 4,
+                child: _AmountInput(
+                  initial: item.amount,
+                  onChanged: (v) => onChanged(item.name, v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _RemoveBtn(onTap: onRemove),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 4,
-            child: _AmountInput(
-              initial: item.amount,
-              onChanged: (v) => onChanged(item.name, v),
+          if (hasSpend)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 2),
+              child: Text(
+                'Disponible: ${formatCurrencyFull(availableAmount)} · Gastado: ${formatCurrencyFull(spentFromThisAsset)}',
+                style: const TextStyle(color: kTextSoft, fontSize: 11),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          _RemoveBtn(onTap: onRemove),
         ],
       ),
     );
