@@ -25,7 +25,17 @@ class AppState extends ChangeNotifier {
   String monthName = '';
   List<BudgetItem> assets = [];
   List<BudgetItem> owed = [];
-  List<dynamic> liabilities = []; // Liability | CreditCard
+  List<dynamic> liabilities = []; // only Liability
+  List<CreditCard> creditCards = [
+    CreditCard(
+      id: '6',
+      name: 'Tarjeta N',
+      creditLimit: 0,
+      balance: 0,
+      minimum: 0,
+      paymentTotal: 0,
+    ),
+  ];
   List<MicroExpense> microExpenses = [];
   List<String> microExpenseCategories = List.from(kDefaultCategories);
 
@@ -108,17 +118,16 @@ class AppState extends ChangeNotifier {
   double get totalMicroExpenses =>
       microExpenses.fold(0, (sum, m) => sum + m.amount);
 
-  double get totalLiabilitiesWithoutMicro => liabilities.fold(0, (sum, l) {
-        if (l is CreditCard) return sum + l.total;
+  double get totalLiabilitiesWithoutMicro => liabilities.fold(0.0, (sum, l) {
         if (l is Liability) return sum + l.amount;
         return sum;
-      });
-
-  double get partialLiabilitiesWithoutMicro => liabilities.fold(0, (sum, l) {
-        if (l is CreditCard) return sum + l.minimum;
+      }) +
+      creditCards.fold(0.0, (sum, c) => sum + c.paymentTotal);
+  double get partialLiabilitiesWithoutMicro => liabilities.fold(0.0, (sum, l) {
         if (l is Liability) return sum + l.amount;
         return sum;
-      });
+      }) +
+      creditCards.fold(0.0, (sum, c) => sum + c.minimum);
 
   double get totalLiabilities => totalLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
   double get partialLiabilities => partialLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
@@ -128,6 +137,19 @@ class AppState extends ChangeNotifier {
 
   List<String> get assetNames =>
       [...assets, ...owed].map((a) => a.name.trim()).where((n) => n.isNotEmpty).toList();
+
+  List<String> get paymentMethodNames {
+    final names = <String>[];
+    for (final n in assetNames) {
+      if (!names.contains(n)) names.add(n);
+    }
+    for (final c in creditCards) {
+      final cardName = c.name.trim();
+      if (cardName.isEmpty) continue;
+      if (!names.contains(cardName)) names.add(cardName);
+    }
+    return names;
+  }
 
   // ── Form actions ───────────────────────────────────────────────────────────
   void _resetForm() {
@@ -141,12 +163,20 @@ class AppState extends ChangeNotifier {
     ];
     owed = [BudgetItem(id: '5', name: 'Me deben', amount: 0)];
     liabilities = [
-      CreditCard(id: '6', name: 'Tarjeta N', total: 0, minimum: 0),
-      CreditCard(id: '7', name: 'Tarjeta V', total: 0, minimum: 0),
       Liability(id: '8', name: 'Moto', amount: 0),
       Liability(id: '9', name: 'Arriendo', amount: 0),
       Liability(id: '10', name: 'Servicios', amount: 0),
       Liability(id: '11', name: 'Mercado', amount: 0),
+    ];
+    creditCards = [
+      CreditCard(
+        id: '6',
+        name: 'Tarjeta N',
+        creditLimit: 0,
+        balance: 0,
+        minimum: 0,
+        paymentTotal: 0,
+      ),
     ];
     microExpenses = [];
   }
@@ -188,7 +218,21 @@ class AppState extends ChangeNotifier {
   }
 
   void addCreditCard() {
-    liabilities.add(CreditCard(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', total: 0, minimum: 0));
+    creditCards.add(
+      CreditCard(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: '',
+        creditLimit: 0,
+        balance: 0,
+        minimum: 0,
+        paymentTotal: 0,
+      ),
+    );
+    notifyListeners();
+  }
+
+  void removeCreditCard(int index) {
+    creditCards.removeAt(index);
     notifyListeners();
   }
 
@@ -273,6 +317,7 @@ class AppState extends ChangeNotifier {
       assets: assets,
       owed: owed,
       liabilities: liabilities,
+      creditCards: creditCards,
       microExpenses: microExpenses,
       microExpenseCategories: microExpenseCategories,
       totalAssets: totalAssets,
@@ -323,6 +368,7 @@ class AppState extends ChangeNotifier {
     assets = List.from(budget.assets);
     owed = List.from(budget.owed);
     liabilities = List.from(budget.liabilities);
+    creditCards = List.from(budget.creditCards);
     microExpenses = List.from(budget.microExpenses);
     if (budget.microExpenseCategories.isNotEmpty) {
       microExpenseCategories = List.from(budget.microExpenseCategories);
@@ -366,6 +412,7 @@ class AppState extends ChangeNotifier {
       assets: assets,
       owed: owed,
       liabilities: liabilities,
+      creditCards: creditCards,
       microExpenses: microExpenses,
       microExpenseCategories: microExpenseCategories,
       totalAssets: totalAssets,
@@ -589,6 +636,7 @@ class AppState extends ChangeNotifier {
       assets: b.assets,
       owed: b.owed,
       liabilities: b.liabilities,
+      creditCards: b.creditCards,
       microExpenses: b.microExpenses,
       microExpenseCategories: b.microExpenseCategories,
       totalAssets: b.totalAssets,

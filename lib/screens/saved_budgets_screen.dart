@@ -149,6 +149,7 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
     state.assets = List.from(budget.assets);
     state.owed = List.from(budget.owed);
     state.liabilities = List.from(budget.liabilities);
+    state.creditCards = List.from(budget.creditCards);
     state.microExpenses = List.from(budget.microExpenses);
     if (budget.microExpenseCategories.isNotEmpty) {
       state.microExpenseCategories = List.from(budget.microExpenseCategories);

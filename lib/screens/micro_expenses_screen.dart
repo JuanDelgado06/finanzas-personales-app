@@ -723,8 +723,8 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
   void initState() {
     super.initState();
     final cats = widget.state.microExpenseCategories;
-    final pays = widget.state.assetNames.isNotEmpty
-        ? widget.state.assetNames
+    final pays = widget.state.paymentMethodNames.isNotEmpty
+      ? widget.state.paymentMethodNames
         : ['Efectivo'];
     if (widget.editIndex != null) {
       final item = widget.state.microExpenses[widget.editIndex!];
@@ -782,8 +782,8 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
   Widget build(BuildContext context) {
     final isEdit = widget.editIndex != null;
     final cats = widget.state.microExpenseCategories;
-    final pays = widget.state.assetNames.isNotEmpty
-        ? widget.state.assetNames
+    final pays = widget.state.paymentMethodNames.isNotEmpty
+      ? widget.state.paymentMethodNames
         : ['Efectivo'];
 
     return Padding(

@@ -20,28 +20,60 @@ class BudgetItem {
 class CreditCard {
   final String id;
   String name;
-  double total;
+  double creditLimit;
+  double balance;
   double minimum;
+  double paymentTotal;
+  int? cutoffDay;
+  int? paymentDay;
   String type;
 
   CreditCard({
     required this.id,
     required this.name,
-    required this.total,
+    required this.creditLimit,
+    required this.balance,
     required this.minimum,
+    required this.paymentTotal,
+    this.cutoffDay,
+    this.paymentDay,
     this.type = 'credit-card',
   });
+
+  static int? _parseOptionalDay(dynamic value) {
+    if (value == null) return null;
+    final parsed = int.tryParse(value.toString());
+    if (parsed == null || parsed < 1 || parsed > 31) return null;
+    return parsed;
+  }
 
   factory CreditCard.fromJson(Map<String, dynamic> json) => CreditCard(
         id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
         name: json['name'] ?? '',
-        total: (json['total'] ?? 0).toDouble(),
+        creditLimit:
+            (json['creditLimit'] ?? json['limit'] ?? json['cupo'] ?? 0).toDouble(),
+        balance: (json['balance'] ?? json['total'] ?? 0).toDouble(),
         minimum: (json['minimum'] ?? 0).toDouble(),
+        paymentTotal:
+            (json['paymentTotal'] ?? json['totalPayment'] ?? json['total'] ?? 0).toDouble(),
+        cutoffDay: _parseOptionalDay(json['cutoffDay'] ?? json['cutoffDate']),
+        paymentDay: _parseOptionalDay(json['paymentDay'] ?? json['paymentDate']),
         type: json['type'] ?? 'credit-card',
       );
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'name': name, 'total': total, 'minimum': minimum, 'type': type};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        // Compatibilidad con backend/datos antiguos que usan total/minimum.
+        'total': paymentTotal,
+        'minimum': minimum,
+        'creditLimit': creditLimit,
+        'balance': balance,
+        'paymentTotal': paymentTotal,
+        'cutoffDay': cutoffDay,
+        'paymentDay': paymentDay,
+        'type': type,
+      };
 }
 
 class Liability {

@@ -86,28 +86,38 @@ class BudgetScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: _Section(
               title: 'Gastos Fijos',
-              subtitle: 'Incluye pagos recurrentes y tarjetas.',
+              subtitle: 'Pagos recurrentes como servicios, arriendos, etc.',
               iconData: PhosphorIconsLight.receipt,
               iconColor: kDanger,
-              onAddLabel: '+ Gasto',
+              onAddLabel: '+ Agregar',
               onAdd: state.addLiability,
-              onAddExtra: state.addCreditCard,
-              onAddExtraLabel: '+ Tarjeta',
               child: Column(
                 children: state.liabilities.asMap().entries.map((e) {
-                  final item = e.value;
-                  if (item is CreditCard) {
-                    return _CreditCardRow(
-                      index: e.key,
-                      item: item,
-                      onRemove: () => state.removeLiability(e.key),
-                    );
-                  }
-                  final l = item as Liability;
+                  final l = e.value as Liability;
                   return _LiabilityRow(
                     index: e.key,
                     item: l,
                     onRemove: () => state.removeLiability(e.key),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _Section(
+              title: 'Tarjetas de Crédito',
+              subtitle: 'Créditos activos, cupos y pagos pendientes.',
+              iconData: PhosphorIconsLight.creditCard,
+              iconColor: const Color(0xFFF59E0B),
+              onAddLabel: '+ Nueva Tarjeta',
+              onAdd: state.addCreditCard,
+              child: Column(
+                children: state.creditCards.asMap().entries.map((e) {
+                  final card = e.value;
+                  return _CreditCardRow(
+                    index: e.key,
+                    item: card,
+                    onRemove: () => state.removeCreditCard(e.key),
                   );
                 }).toList(),
               ),
@@ -686,6 +696,84 @@ class _NameInputState extends State<_NameInput> {
   }
 }
 
+class _DayInput extends StatefulWidget {
+  final int? initial;
+  final String hint;
+  final ValueChanged<int?> onChanged;
+  const _DayInput({
+    required this.initial,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  @override
+  State<_DayInput> createState() => _DayInputState();
+}
+
+class _DayInputState extends State<_DayInput> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initial?.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DayInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText = widget.initial?.toString() ?? '';
+    if (_ctrl.text == nextText) return;
+    _ctrl.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _ctrl,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: kTextMain, fontSize: 13),
+      onChanged: (v) {
+        final parsed = int.tryParse(v);
+        if (parsed == null || parsed < 1 || parsed > 31) {
+          widget.onChanged(null);
+          return;
+        }
+        widget.onChanged(parsed);
+      },
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        hintStyle: const TextStyle(color: kTextSoft, fontSize: 12),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kAccent),
+        ),
+      ),
+    );
+  }
+}
+
 class _RemoveBtn extends StatelessWidget {
   final VoidCallback onTap;
   const _RemoveBtn({required this.onTap});
@@ -820,7 +908,7 @@ class _LiabilityRow extends StatelessWidget {
   }
 }
 
-class _CreditCardRow extends StatelessWidget {
+class _CreditCardRow extends StatefulWidget {
   final int index;
   final CreditCard item;
   final VoidCallback onRemove;
@@ -832,88 +920,498 @@ class _CreditCardRow extends StatelessWidget {
   });
 
   @override
+  State<_CreditCardRow> createState() => _CreditCardRowState();
+}
+
+class _CreditCardRowState extends State<_CreditCardRow> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = context.read<AppState>();
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: kWarning.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kWarning.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const PhosphorIcon(
-                PhosphorIconsLight.creditCard,
-                color: kWarning,
-                size: 14,
+    final cardName = widget.item.name.trim();
+    final hasName = cardName.isNotEmpty;
+    final utilization = widget.item.creditLimit > 0
+        ? (widget.item.balance / widget.item.creditLimit * 100).clamp(0, 100)
+        : 0;
+
+    // Paleta elegante de colores sofisticados
+    final colors = [
+      const Color(0xFF1F2937), // Gris oscuro
+      const Color(0xFF374151), // Gris medio
+      const Color(0xFF1E3A8A), // Azul oscuro
+      const Color(0xFF1E293B), // Pizarra oscura
+      const Color(0xFF0F172A), // Casi negro azulado
+      const Color(0xFF44403C), // Taupe oscuro
+    ];
+
+    final colorIndex =
+        (widget.item.id.hashCode).abs() % colors.length;
+    final primaryColor = colors[colorIndex];
+    final accentColor = Colors.white.withOpacity(0.95);
+    final secondaryAccent = Colors.white.withOpacity(0.6);
+
+    return Column(
+      children: [
+        // ── Credit Card Visual ──────────────────────────────────────────────
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  primaryColor,
+                  primaryColor.withOpacity(0.95),
+                ],
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _NameInput(
-                  initial: item.name,
-                  hint: 'Tarjeta de crédito',
-                  onChanged: (v) {
-                    item.name = v;
-                    state.notifyListeners();
-                  },
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-              const SizedBox(width: 8),
-              _RemoveBtn(onTap: onRemove),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Total deuda',
-                      style: TextStyle(color: kTextSoft, fontSize: 11),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header: Icon + Name + Delete
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: PhosphorIcon(
+                            PhosphorIconsLight.creditCard,
+                            color: accentColor,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tarjeta de Crédito',
+                              style: TextStyle(
+                                color: secondaryAccent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              hasName ? cardName : 'Nueva Tarjeta',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: widget.onRemove,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: PhosphorIcon(
+                              PhosphorIconsLight.trash,
+                              color: Colors.red.shade300,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  // Middle: Saldo y Cupo
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SALDO ACTUAL',
+                            style: TextStyle(
+                              color: secondaryAccent,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            formatCurrencyFull(widget.item.balance),
+                            style: TextStyle(
+                              color: accentColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 20,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'CUPO TOTAL',
+                            style: TextStyle(
+                              color: secondaryAccent,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            formatCurrencyFull(widget.item.creditLimit),
+                            style: TextStyle(
+                              color: accentColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 20,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  // Progress bar
+                  Container(
+                    width: double.infinity,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(3),
                     ),
-                    const SizedBox(height: 4),
-                    _AmountInput(
-                      initial: item.total,
-                      compact: true,
-                      onChanged: (v) {
-                        item.total = v;
-                        state.notifyListeners();
-                      },
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        height: 5,
+                        width:
+                            MediaQuery.of(context).size.width * (utilization / 100) * 0.65,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.8),
+                              Colors.white.withOpacity(0.5),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Bottom: Dates & Utilization
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Corte',
+                              style: TextStyle(
+                                color: secondaryAccent,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              widget.item.cutoffDay != null
+                                  ? 'Día ${widget.item.cutoffDay}'
+                                  : '---',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pago',
+                              style: TextStyle(
+                                color: secondaryAccent,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              widget.item.paymentDay != null
+                                  ? 'Día ${widget.item.paymentDay}'
+                                  : '---',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Uso',
+                              style: TextStyle(
+                                color: secondaryAccent,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${utilization.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: accentColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // ── Expanded Editor ────────────────────────────────────────────────
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 220),
+          crossFadeState: _expanded
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          firstChild: Container(
+            margin: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: kSurfaceHover,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kLine),
+            ),
+            child: Column(
+              children: [
+                // Nombre
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Nombre de tarjeta',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _NameInput(
+                            initial: widget.item.name,
+                            hint: 'Ej: Visa, Mastercard, Amex',
+                            onChanged: (v) {
+                              widget.item.name = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 10),
+                // Cupo y Saldo
+                Row(
                   children: [
-                    const Text(
-                      'Pago mínimo',
-                      style: TextStyle(color: kTextSoft, fontSize: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cupo',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _AmountInput(
+                            initial: widget.item.creditLimit,
+                            compact: true,
+                            onChanged: (v) {
+                              widget.item.creditLimit = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    _AmountInput(
-                      initial: item.minimum,
-                      compact: true,
-                      onChanged: (v) {
-                        item.minimum = v;
-                        state.notifyListeners();
-                      },
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Saldo',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _AmountInput(
+                            initial: widget.item.balance,
+                            compact: true,
+                            onChanged: (v) {
+                              widget.item.balance = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                // Pagos
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pago mínimo',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _AmountInput(
+                            initial: widget.item.minimum,
+                            compact: true,
+                            onChanged: (v) {
+                              widget.item.minimum = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pago total',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _AmountInput(
+                            initial: widget.item.paymentTotal,
+                            compact: true,
+                            onChanged: (v) {
+                              widget.item.paymentTotal = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Fechas
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Día de corte',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _DayInput(
+                            initial: widget.item.cutoffDay,
+                            hint: '1-31',
+                            onChanged: (v) {
+                              widget.item.cutoffDay = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Día de pago',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          ),
+                          const SizedBox(height: 4),
+                          _DayInput(
+                            initial: widget.item.paymentDay,
+                            hint: '1-31',
+                            onChanged: (v) {
+                              widget.item.paymentDay = v;
+                              state.notifyListeners();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+          secondChild: const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }
