@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/budget_item.dart';
 import '../models/monthly_budget.dart';
 import '../services/api_service.dart';
@@ -15,6 +17,11 @@ class AppState extends ChangeNotifier {
   late final ApiService apiService;
 
   // Form state
+  static const String _budgetsCacheKey = 'saved_budgets_cache_v1';
+  static const String _pendingOpsCacheKey = 'pending_budget_ops_v1';
+  bool _syncingPendingOps = false;
+  int _pendingOpsCount = 0;
+
   String monthName = '';
   List<BudgetItem> assets = [];
   List<BudgetItem> owed = [];
@@ -26,6 +33,10 @@ class AppState extends ChangeNotifier {
   List<MonthlyBudget> savedBudgets = [];
   bool loadingBudgets = false;
 
+  bool get isSyncingPendingOps => _syncingPendingOps;
+  bool get hasPendingSync => _pendingOpsCount > 0;
+  int get pendingOpsCount => _pendingOpsCount;
+
   // Auto-save state
   bool isSaving = false;
   bool lastSaveOk = true;
@@ -34,6 +45,13 @@ class AppState extends ChangeNotifier {
   AppState({required this.authService}) {
     apiService = ApiService(getIdToken: authService.getIdToken);
     _resetForm();
+    _initPendingOpsState();
+  }
+
+  Future<void> _initPendingOpsState() async {
+    final ops = await _readPendingOpsCache();
+    _pendingOpsCount = ops.length;
+    notifyListeners();
   }
 
   // ── Calculated totals ──────────────────────────────────────────────────────
@@ -250,33 +268,36 @@ class AppState extends ChangeNotifier {
 
   Future<void> _autoSave() async {
     _ensureMonthName();
+    final budget = MonthlyBudget(
+      monthName: monthName,
+      assets: assets,
+      owed: owed,
+      liabilities: liabilities,
+      microExpenses: microExpenses,
+      microExpenseCategories: microExpenseCategories,
+      totalAssets: totalAssets,
+      totalLiabilities: totalLiabilities,
+      netWorth: netWorth,
+      partialNetWorth: partialNetWorth,
+      createdAt: DateTime.now().toIso8601String(),
+      authorId: authService.currentUser?.uid,
+      authorName: authService.currentUser?.displayName,
+      authorEmail: authService.currentUser?.email,
+    );
+
     isSaving = true;
     notifyListeners();
     try {
-      await apiService.saveBudget(MonthlyBudget(
-        monthName: monthName,
-        assets: assets,
-        owed: owed,
-        liabilities: liabilities,
-        microExpenses: microExpenses,
-        microExpenseCategories: microExpenseCategories,
-        totalAssets: totalAssets,
-        totalLiabilities: totalLiabilities,
-        netWorth: netWorth,
-        partialNetWorth: partialNetWorth,
-        createdAt: DateTime.now().toIso8601String(),
-        authorId: authService.currentUser?.uid,
-        authorName: authService.currentUser?.displayName,
-        authorEmail: authService.currentUser?.email,
-      ));
+      await apiService.saveBudget(budget);
       lastSaveOk = true;
-      apiService.getBudgets().then((list) {
-        savedBudgets = list;
-        notifyListeners();
-      }).catchError((_) {});
+      await _syncPendingOperations(refreshBudgets: true);
     } catch (e) {
       debugPrint('Auto-save error: $e');
-      lastSaveOk = false;
+      lastSaveOk = true;
+      await _enqueuePendingSave(budget);
+      _upsertLocalBudget(budget);
+      await _writeBudgetsCache(savedBudgets);
+      notifyListeners();
     } finally {
       isSaving = false;
       notifyListeners();
@@ -314,9 +335,15 @@ class AppState extends ChangeNotifier {
     loadingBudgets = true;
     notifyListeners();
     try {
+      await _syncPendingOperations(refreshBudgets: false);
       savedBudgets = await apiService.getBudgets();
+      await _writeBudgetsCache(savedBudgets);
     } catch (e) {
       debugPrint('Error loading budgets: $e');
+      final cached = await _readBudgetsCache();
+      if (cached.isNotEmpty) {
+        savedBudgets = cached;
+      }
     } finally {
       loadingBudgets = false;
       notifyListeners();
@@ -352,11 +379,17 @@ class AppState extends ChangeNotifier {
     );
     try {
       await apiService.saveBudget(budget);
+      await _syncPendingOperations(refreshBudgets: false);
       await loadBudgets();
       return true;
     } catch (e) {
       debugPrint('Error saving budget: $e');
-      return false;
+      lastSaveOk = true;
+      await _enqueuePendingSave(budget);
+      _upsertLocalBudget(budget);
+      await _writeBudgetsCache(savedBudgets);
+      notifyListeners();
+      return true;
     }
   }
 
@@ -364,12 +397,179 @@ class AppState extends ChangeNotifier {
     try {
       await apiService.deleteBudget(monthSlug);
       savedBudgets.removeWhere((b) => b.monthSlug == monthSlug);
+      await _syncPendingOperations(refreshBudgets: false);
+      await _writeBudgetsCache(savedBudgets);
       notifyListeners();
       return true;
     } catch (e) {
       debugPrint('Error deleting budget: $e');
-      return false;
+      savedBudgets.removeWhere((b) => b.monthSlug == monthSlug);
+      await _enqueuePendingDelete(monthSlug);
+      await _writeBudgetsCache(savedBudgets);
+      notifyListeners();
+      return true;
     }
+  }
+
+  Future<void> _writeBudgetsCache(List<MonthlyBudget> budgets) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final payload = budgets.map((b) => b.toJson()).toList();
+      await prefs.setString(_budgetsCacheKey, jsonEncode(payload));
+    } catch (e) {
+      debugPrint('Error writing budgets cache: $e');
+    }
+  }
+
+  Future<List<MonthlyBudget>> _readBudgetsCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_budgetsCacheKey);
+      if (raw == null || raw.isEmpty) return [];
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+
+      return decoded
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .map(MonthlyBudget.fromJson)
+          .toList();
+    } catch (e) {
+      debugPrint('Error reading budgets cache: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _readPendingOpsCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_pendingOpsCacheKey);
+      if (raw == null || raw.isEmpty) return [];
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+
+      return decoded
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      debugPrint('Error reading pending ops cache: $e');
+      return [];
+    }
+  }
+
+  Future<void> _writePendingOpsCache(List<Map<String, dynamic>> ops) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_pendingOpsCacheKey, jsonEncode(ops));
+      _pendingOpsCount = ops.length;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error writing pending ops cache: $e');
+    }
+  }
+
+  Future<void> _enqueuePendingSave(MonthlyBudget budget) async {
+    final ops = await _readPendingOpsCache();
+    final monthKey = budget.monthName.trim().toLowerCase();
+    ops.removeWhere((op) {
+      if (op['type'] != 'save') return false;
+      final rawBudget = op['budget'];
+      if (rawBudget is! Map) return false;
+      final pendingMonth = (rawBudget['monthName'] ?? '').toString().trim().toLowerCase();
+      return pendingMonth == monthKey;
+    });
+    ops.add({
+      'type': 'save',
+      'budget': budget.toJson(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    await _writePendingOpsCache(ops);
+  }
+
+  Future<void> _enqueuePendingDelete(String monthSlug) async {
+    final ops = await _readPendingOpsCache();
+    ops.removeWhere((op) {
+      final type = op['type'];
+      if (type == 'delete' && op['monthSlug'] == monthSlug) return true;
+      if (type != 'save') return false;
+      final rawBudget = op['budget'];
+      if (rawBudget is! Map) return false;
+      return rawBudget['monthSlug'] == monthSlug;
+    });
+    ops.add({
+      'type': 'delete',
+      'monthSlug': monthSlug,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    await _writePendingOpsCache(ops);
+  }
+
+  void _upsertLocalBudget(MonthlyBudget budget) {
+    final key = budget.monthName.trim().toLowerCase();
+    savedBudgets.removeWhere((b) => b.monthName.trim().toLowerCase() == key);
+    savedBudgets.insert(0, budget);
+  }
+
+  Future<int> _syncPendingOperations({required bool refreshBudgets}) async {
+    if (_syncingPendingOps) return 0;
+
+    final ops = await _readPendingOpsCache();
+    if (ops.isEmpty) return 0;
+
+    _syncingPendingOps = true;
+    notifyListeners();
+    var processed = 0;
+    try {
+      for (final op in ops) {
+        final type = (op['type'] ?? '').toString();
+        if (type == 'save') {
+          final rawBudget = op['budget'];
+          if (rawBudget is! Map) {
+            processed++;
+            continue;
+          }
+          final budget = MonthlyBudget.fromJson(Map<String, dynamic>.from(rawBudget));
+          await apiService.saveBudget(budget);
+          processed++;
+          continue;
+        }
+
+        if (type == 'delete') {
+          final monthSlug = (op['monthSlug'] ?? '').toString();
+          if (monthSlug.isEmpty) {
+            processed++;
+            continue;
+          }
+          await apiService.deleteBudget(monthSlug);
+          processed++;
+          continue;
+        }
+
+        processed++;
+      }
+    } catch (e) {
+      debugPrint('Pending sync paused: $e');
+    } finally {
+      final remaining = processed >= ops.length ? <Map<String, dynamic>>[] : ops.sublist(processed);
+      await _writePendingOpsCache(remaining);
+      _syncingPendingOps = false;
+      notifyListeners();
+    }
+
+    if (refreshBudgets && processed > 0) {
+      try {
+        savedBudgets = await apiService.getBudgets();
+        await _writeBudgetsCache(savedBudgets);
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Error refreshing budgets after pending sync: $e');
+      }
+    }
+
+    return processed;
   }
 
   String _budgetMergeKey(MonthlyBudget b) {

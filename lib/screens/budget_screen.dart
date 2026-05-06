@@ -13,6 +13,12 @@ class BudgetScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final availableById = state.availableAmountByItemId;
+    final monthKey = state.monthName.trim().toLowerCase();
+    final hasExistingBudget =
+        monthKey.isNotEmpty &&
+        state.savedBudgets.any(
+          (b) => b.monthName.trim().toLowerCase() == monthKey,
+        );
     return Scaffold(
       backgroundColor: kAppBg,
       body: CustomScrollView(
@@ -113,7 +119,11 @@ class BudgetScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () => _saveBudget(context, state),
                 icon: const PhosphorIcon(PhosphorIconsLight.cloudArrowUp),
-                label: const Text('Guardar presupuesto'),
+                label: Text(
+                  hasExistingBudget
+                      ? 'Actualizar presupuesto'
+                      : 'Guardar presupuesto',
+                ),
               ),
             ),
           ),
@@ -148,10 +158,17 @@ class BudgetScreen extends StatelessWidget {
   Future<void> _saveBudget(BuildContext context, AppState state) async {
     final ok = await state.saveBudget();
     if (!context.mounted) return;
+    final queued = state.hasPendingSync;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'Presupuesto guardado ✓' : 'Error al guardar'),
-        backgroundColor: ok ? kSuccess : kDanger,
+        content: Text(
+          ok
+              ? (queued
+                    ? 'Guardado local. Pendiente de sincronizar'
+                    : 'Presupuesto guardado ✓')
+              : 'Error al guardar',
+        ),
+        backgroundColor: ok ? (queued ? kAccent : kSuccess) : kDanger,
       ),
     );
   }
@@ -320,11 +337,23 @@ class _MonthInputState extends State<_MonthInput> {
   }
 
   @override
+  void didUpdateWidget(covariant _MonthInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText = widget.state.monthName;
+    if (_ctrl.text == nextText) return;
+    _ctrl.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextField(
       controller: _ctrl,
       onChanged: (v) {
         widget.state.monthName = v;
+        widget.state.notifyListeners();
       },
       style: const TextStyle(color: kTextMain),
       decoration: const InputDecoration(
@@ -362,7 +391,7 @@ class _Section extends StatefulWidget {
     this.onAddExtra,
     this.onAddExtraLabel,
     required this.child,
-    this.initiallyExpanded = true,
+    this.initiallyExpanded = false,
   });
 
   @override
@@ -539,6 +568,18 @@ class _AmountInputState extends State<_AmountInput> {
   }
 
   @override
+  void didUpdateWidget(covariant _AmountInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText =
+        widget.initial == 0 ? '' : widget.initial.toStringAsFixed(0);
+    if (_ctrl.text == nextText) return;
+    _ctrl.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextField(
       controller: _ctrl,
@@ -601,6 +642,17 @@ class _NameInputState extends State<_NameInput> {
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NameInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText = widget.initial;
+    if (_ctrl.text == nextText) return;
+    _ctrl.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
   }
 
   @override

@@ -114,6 +114,31 @@ class _SaveStatusBar extends StatelessWidget {
               label: 'Guardando…',
               color: kTextSoft,
             )
+          : state.isSyncingPendingOps
+          ? _statusRow(
+              key: const ValueKey('syncing_pending'),
+              icon: const SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: kAccent,
+                ),
+              ),
+              label: 'Sincronizando pendientes…',
+              color: kAccent,
+            )
+          : state.hasPendingSync
+          ? _statusRow(
+              key: const ValueKey('pending_sync'),
+              icon: const PhosphorIcon(
+                PhosphorIconsLight.cloudArrowUp,
+                color: kAccent,
+                size: 14,
+              ),
+              label: 'Guardado local, pendiente de sincronizar',
+              color: kAccent,
+            )
           : state.lastSaveOk
           ? _statusRow(
               key: const ValueKey('ok'),
@@ -342,15 +367,26 @@ class _GroupedExpenseListState extends State<_GroupedExpenseList> {
   final Set<String> _collapsedCategories = <String>{};
   late List<_ExpenseListEntry> _entries;
 
+  void _syncCollapsedCategories() {
+    final categories = widget.state.microExpenses
+        .map((expense) => expense.category)
+        .toSet();
+
+    _collapsedCategories.removeWhere((c) => !categories.contains(c));
+    _collapsedCategories.addAll(categories);
+  }
+
   @override
   void initState() {
     super.initState();
+    _syncCollapsedCategories();
     _entries = _buildExpenseEntries(widget.state, _collapsedCategories);
   }
 
   @override
   void didUpdateWidget(covariant _GroupedExpenseList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncCollapsedCategories();
     _applyEntries(_buildExpenseEntries(widget.state, _collapsedCategories));
   }
 

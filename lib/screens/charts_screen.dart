@@ -21,16 +21,6 @@ class ChartsScreen extends StatelessWidget {
     final sorted = catTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // Build liabilities bar data
-    final fixedItems = state.liabilities
-        .map((l) {
-          if (l is CreditCard) return MapEntry(l.name, l.minimum);
-          if (l is Liability) return MapEntry((l as Liability).name, l.amount);
-          return const MapEntry('', 0.0);
-        })
-        .where((e) => e.value > 0)
-        .toList();
-
     return Scaffold(
       backgroundColor: kAppBg,
       body: ListView(
@@ -40,9 +30,10 @@ class ChartsScreen extends StatelessWidget {
           _BalanceCard(state: state),
           const SizedBox(height: 16),
           // Insights card
-          if (sorted.isNotEmpty || fixedItems.isNotEmpty)
-            _InsightsCard(sorted: sorted, fixedItems: fixedItems, state: state),
-          const SizedBox(height: 16),
+          if (sorted.isNotEmpty) ...[
+            _InsightsCard(sorted: sorted, state: state),
+            const SizedBox(height: 16),
+          ],
           if (sorted.isNotEmpty) ...[
             _ChartSection(
               title: 'Gastos Hormiga por Categoría',
@@ -52,15 +43,6 @@ class ChartsScreen extends StatelessWidget {
                 data: sorted,
                 total: state.totalMicroExpenses,
               ),
-            ),
-            const SizedBox(height: 16),
-          ],
-          if (fixedItems.isNotEmpty) ...[
-            _ChartSection(
-              title: 'Gastos Fijos',
-              icon: PhosphorIconsLight.chartBar,
-              iconColor: kDanger,
-              child: _LiabilitiesBarChart(items: fixedItems),
             ),
             const SizedBox(height: 16),
           ],
@@ -289,102 +271,13 @@ class _MicroPieChart extends StatelessWidget {
   }
 }
 
-// ── Bar chart ─────────────────────────────────────────────────────────────────
-class _LiabilitiesBarChart extends StatelessWidget {
-  final List<MapEntry<String, double>> items;
-  const _LiabilitiesBarChart({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    final maxVal = items.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    const barColors = [
-      Color(0xFFFF5F7A),
-      Color(0xFF4F8CFF),
-      Color(0xFFA78BFA),
-      Color(0xFF22C55E),
-      Color(0xFFF59E0B),
-      Color(0xFF14B8A6),
-      Color(0xFFEC4899),
-    ];
-    final groups = items.asMap().entries.map((e) {
-      final color = barColors[e.key % barColors.length];
-      return BarChartGroupData(
-        x: e.key,
-        barRods: [
-          BarChartRodData(
-            toY: e.value.value,
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [color.withOpacity(0.6), color],
-            ),
-            width: 16,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ],
-      );
-    }).toList();
-
-    return SizedBox(
-      height: 200,
-      child: BarChart(
-        BarChartData(
-          maxY: maxVal * 1.2,
-          barGroups: groups,
-          borderData: FlBorderData(show: false),
-          gridData: const FlGridData(show: false),
-          titlesData: FlTitlesData(
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 48,
-                getTitlesWidget: (v, m) => Text(
-                  formatCurrency(v),
-                  style: const TextStyle(color: kTextSoft, fontSize: 9),
-                ),
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 32,
-                getTitlesWidget: (v, m) {
-                  final idx = v.toInt();
-                  if (idx < 0 || idx >= items.length)
-                    return const SizedBox.shrink();
-                  final name = items[idx].key;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      name.length > 8 ? '${name.substring(0, 7)}…' : name,
-                      style: const TextStyle(color: kTextSoft, fontSize: 9),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── Insights card ────────────────────────────────────────────────────────────
 class _InsightsCard extends StatelessWidget {
   final List<MapEntry<String, double>> sorted;
-  final List<MapEntry<String, double>> fixedItems;
   final AppState state;
 
   const _InsightsCard({
     required this.sorted,
-    required this.fixedItems,
     required this.state,
   });
 
@@ -397,20 +290,10 @@ class _InsightsCard extends StatelessWidget {
       topCategoryAmount = sorted.first.value;
     }
 
-    String? topFixed;
-    double? topFixedAmount;
-    if (fixedItems.isNotEmpty) {
-      topFixed = fixedItems.first.key;
-      topFixedAmount = fixedItems.first.value;
-    }
-
     String? insight;
     if (topCategory != null && topCategoryAmount! > 0) {
       insight =
           'Tu categoría con más gasto es $topCategory (${formatCurrencyFull(topCategoryAmount)})';
-    } else if (topFixed != null && topFixedAmount! > 0) {
-      insight =
-          'Tu gasto fijo más alto es $topFixed (${formatCurrencyFull(topFixedAmount)})';
     }
 
     if (insight == null) return const SizedBox.shrink();

@@ -93,12 +93,17 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
               }
               final ok = await state.deleteBudget(budget.monthSlug!);
               if (!context.mounted) return;
+              final queued = state.hasPendingSync;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    ok ? 'Presupuesto eliminado' : 'Error al eliminar',
+                    ok
+                        ? (queued
+                              ? 'Eliminado local. Pendiente de sincronizar'
+                              : 'Presupuesto eliminado')
+                        : 'Error al eliminar',
                   ),
-                  backgroundColor: ok ? kSuccess : kDanger,
+                  backgroundColor: ok ? (queued ? kAccent : kSuccess) : kDanger,
                 ),
               );
             },
