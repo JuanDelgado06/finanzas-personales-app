@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../models/budget_item.dart';
@@ -26,15 +27,25 @@ class BudgetScreen extends StatelessWidget {
             child: _Section(
               title: 'Activos',
               subtitle: 'Ingresa cuentas, efectivo o ahorro disponible.',
-              iconData: Icons.savings_outlined,
+              iconData: PhosphorIconsLight.wallet,
               iconColor: kAccent,
               onAdd: state.addAsset,
               child: Column(
                 children: state.assets
                     .asMap()
                     .entries
-                    .map((e) => _AssetRow(index: e.key, item: e.value, onRemove: () => state.removeAsset(e.key),
-                        onChanged: (name, amount) => state.updateAsset(e.key, name: name, amount: amount)))
+                    .map(
+                      (e) => _AssetRow(
+                        index: e.key,
+                        item: e.value,
+                        onRemove: () => state.removeAsset(e.key),
+                        onChanged: (name, amount) => state.updateAsset(
+                          e.key,
+                          name: name,
+                          amount: amount,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -43,15 +54,22 @@ class BudgetScreen extends StatelessWidget {
             child: _Section(
               title: 'Me Deben',
               subtitle: 'Registra dinero pendiente por cobrar.',
-              iconData: Icons.arrow_downward_rounded,
+              iconData: PhosphorIconsLight.bank,
               iconColor: const Color(0xFF22C55E),
               onAdd: state.addOwed,
               child: Column(
                 children: state.owed
                     .asMap()
                     .entries
-                    .map((e) => _AssetRow(index: e.key, item: e.value, onRemove: () => state.removeOwed(e.key),
-                        onChanged: (name, amount) => state.updateOwed(e.key, name: name, amount: amount)))
+                    .map(
+                      (e) => _AssetRow(
+                        index: e.key,
+                        item: e.value,
+                        onRemove: () => state.removeOwed(e.key),
+                        onChanged: (name, amount) =>
+                            state.updateOwed(e.key, name: name, amount: amount),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -60,33 +78,29 @@ class BudgetScreen extends StatelessWidget {
             child: _Section(
               title: 'Gastos Fijos',
               subtitle: 'Incluye pagos recurrentes y tarjetas.',
-              iconData: Icons.receipt_long_outlined,
+              iconData: PhosphorIconsLight.receipt,
               iconColor: kDanger,
               onAddLabel: '+ Gasto',
               onAdd: state.addLiability,
               onAddExtra: state.addCreditCard,
               onAddExtraLabel: '+ Tarjeta',
               child: Column(
-                children: state.liabilities
-                    .asMap()
-                    .entries
-                    .map((e) {
-                      final item = e.value;
-                      if (item is CreditCard) {
-                        return _CreditCardRow(
-                          index: e.key,
-                          item: item,
-                          onRemove: () => state.removeLiability(e.key),
-                        );
-                      }
-                      final l = item as Liability;
-                      return _LiabilityRow(
-                        index: e.key,
-                        item: l,
-                        onRemove: () => state.removeLiability(e.key),
-                      );
-                    })
-                    .toList(),
+                children: state.liabilities.asMap().entries.map((e) {
+                  final item = e.value;
+                  if (item is CreditCard) {
+                    return _CreditCardRow(
+                      index: e.key,
+                      item: item,
+                      onRemove: () => state.removeLiability(e.key),
+                    );
+                  }
+                  final l = item as Liability;
+                  return _LiabilityRow(
+                    index: e.key,
+                    item: l,
+                    onRemove: () => state.removeLiability(e.key),
+                  );
+                }).toList(),
               ),
             ),
           ),
@@ -95,7 +109,7 @@ class BudgetScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: ElevatedButton.icon(
                 onPressed: () => _saveBudget(context, state),
-                icon: const Icon(Icons.cloud_upload_outlined),
+                icon: const PhosphorIcon(PhosphorIconsLight.cloudArrowUp),
                 label: const Text('Guardar presupuesto'),
               ),
             ),
@@ -105,11 +119,19 @@ class BudgetScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: OutlinedButton.icon(
                 onPressed: () => _confirmReset(context, state),
-                icon: const Icon(Icons.refresh, color: kTextSoft),
-                label: const Text('Nuevo mes', style: TextStyle(color: kTextSoft)),
+                icon: const PhosphorIcon(
+                  PhosphorIconsLight.arrowClockwise,
+                  color: kTextSoft,
+                ),
+                label: const Text(
+                  'Nuevo mes',
+                  style: TextStyle(color: kTextSoft),
+                ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: kLine),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
@@ -123,10 +145,12 @@ class BudgetScreen extends StatelessWidget {
   Future<void> _saveBudget(BuildContext context, AppState state) async {
     final ok = await state.saveBudget();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok ? 'Presupuesto guardado ✓' : 'Error al guardar'),
-      backgroundColor: ok ? kSuccess : kDanger,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Presupuesto guardado ✓' : 'Error al guardar'),
+        backgroundColor: ok ? kSuccess : kDanger,
+      ),
+    );
   }
 
   void _confirmReset(BuildContext context, AppState state) {
@@ -148,10 +172,12 @@ class BudgetScreen extends StatelessWidget {
             onPressed: () {
               Navigator.pop(context);
               state.resetForm();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Formulario limpiado para nuevo mes'),
-                backgroundColor: kAccent,
-              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Formulario limpiado para nuevo mes'),
+                  backgroundColor: kAccent,
+                ),
+              );
             },
             child: const Text('Limpiar', style: TextStyle(color: kAccent)),
           ),
@@ -172,12 +198,20 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(20),
-      decoration: cardDecoration(borderColor: isPositive ? kSuccess.withOpacity(0.3) : kDanger.withOpacity(0.3)),
+      decoration: cardDecoration(
+        borderColor: isPositive
+            ? kSuccess.withOpacity(0.3)
+            : kDanger.withOpacity(0.3),
+      ),
       child: Column(
         children: [
           Text(
             state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-            style: const TextStyle(color: kTextSoft, fontSize: 13, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: kTextSoft,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 4),
           TweenAnimationBuilder<double>(
@@ -195,13 +229,28 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          const Text('Balance neto', style: TextStyle(color: kTextSoft, fontSize: 12)),
+          const Text(
+            'Balance neto',
+            style: TextStyle(color: kTextSoft, fontSize: 12),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
-              _SummaryTile(label: 'Activos', value: state.totalAssets, color: kSuccess),
-              _SummaryTile(label: 'Gastos fijos', value: state.totalLiabilitiesWithoutMicro, color: kDanger),
-              _SummaryTile(label: 'Gastos hormiga', value: state.totalMicroExpenses, color: kWarning),
+              _SummaryTile(
+                label: 'Activos',
+                value: state.totalAssets,
+                color: kSuccess,
+              ),
+              _SummaryTile(
+                label: 'Gastos fijos',
+                value: state.totalLiabilitiesWithoutMicro,
+                color: kDanger,
+              ),
+              _SummaryTile(
+                label: 'Gastos hormiga',
+                value: state.totalMicroExpenses,
+                color: kWarning,
+              ),
             ],
           ),
         ],
@@ -214,16 +263,31 @@ class _SummaryTile extends StatelessWidget {
   final String label;
   final double value;
   final Color color;
-  const _SummaryTile({required this.label, required this.value, required this.color});
+  const _SummaryTile({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Text(formatCurrency(value), style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(
+            formatCurrency(value),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: kTextSoft, fontSize: 10), textAlign: TextAlign.center),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSoft, fontSize: 10),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -245,18 +309,28 @@ class _MonthInputState extends State<_MonthInput> {
     super.initState();
     _ctrl = TextEditingController(text: widget.state.monthName);
   }
+
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: _ctrl,
-      onChanged: (v) { widget.state.monthName = v; },
+      onChanged: (v) {
+        widget.state.monthName = v;
+      },
       style: const TextStyle(color: kTextMain),
       decoration: const InputDecoration(
         hintText: 'Nombre del mes (ej. Enero 2025)',
-        prefixIcon: Icon(Icons.calendar_today_outlined, color: kTextSoft, size: 18),
+        prefixIcon: PhosphorIcon(
+          PhosphorIconsLight.calendarBlank,
+          color: kTextSoft,
+          size: 18,
+        ),
       ),
     );
   }
@@ -301,34 +375,53 @@ class _Section extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(iconData, color: iconColor, size: 18),
-                    const SizedBox(width: 8),
-                    Text(title, style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 15)),
-                    const Spacer(),
-                    if (onAddExtra != null)
-                      _AddBtn(label: onAddExtraLabel!, onTap: onAddExtra!),
-                    const SizedBox(width: 4),
-                    _AddBtn(label: onAddLabel, onTap: onAdd),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(iconData, color: iconColor, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  color: kTextMain,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (onAddExtra != null)
+                                _AddBtn(
+                                  label: onAddExtraLabel!,
+                                  onTap: onAddExtra!,
+                                ),
+                              const SizedBox(width: 4),
+                              _AddBtn(label: onAddLabel, onTap: onAdd),
+                            ],
+                          ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              subtitle!,
+                              style: const TextStyle(
+                                color: kTextSoft,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1, color: kLineSoft),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                      child: child,
+                    ),
                   ],
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 6),
-                  Text(subtitle!, style: const TextStyle(color: kTextSoft, fontSize: 12)),
-                ],
-              ],
-            ),
-          ),
-                  const Divider(height: 1, color: kLineSoft),
-                  Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 8), child: child),
-                ],
-              ),
               ),
             ],
           ),
@@ -353,7 +446,14 @@ class _AddBtn extends StatelessWidget {
           color: kAccent.withOpacity(0.15),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label, style: const TextStyle(color: kAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: kAccent,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -364,7 +464,11 @@ class _AmountInput extends StatefulWidget {
   final double initial;
   final ValueChanged<double> onChanged;
   final bool compact;
-  const _AmountInput({required this.initial, required this.onChanged, this.compact = false});
+  const _AmountInput({
+    required this.initial,
+    required this.onChanged,
+    this.compact = false,
+  });
   @override
   State<_AmountInput> createState() => _AmountInputState();
 }
@@ -374,17 +478,25 @@ class _AmountInputState extends State<_AmountInput> {
   @override
   void initState() {
     super.initState();
-    _ctrl = TextEditingController(text: widget.initial == 0 ? '' : widget.initial.toStringAsFixed(0));
+    _ctrl = TextEditingController(
+      text: widget.initial == 0 ? '' : widget.initial.toStringAsFixed(0),
+    );
   }
+
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: _ctrl,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+      ],
       style: TextStyle(color: kTextMain, fontSize: widget.compact ? 13 : 14),
       textAlign: TextAlign.right,
       onChanged: (v) => widget.onChanged(double.tryParse(v) ?? 0),
@@ -394,10 +506,22 @@ class _AmountInputState extends State<_AmountInput> {
         prefixText: '\$ ',
         prefixStyle: const TextStyle(color: kTextSoft, fontSize: 13),
         isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: widget.compact ? 10 : 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kLine)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kLine)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAccent)),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: widget.compact ? 10 : 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kAccent),
+        ),
       ),
     );
   }
@@ -407,7 +531,11 @@ class _NameInput extends StatefulWidget {
   final String initial;
   final String hint;
   final ValueChanged<String> onChanged;
-  const _NameInput({required this.initial, required this.hint, required this.onChanged});
+  const _NameInput({
+    required this.initial,
+    required this.hint,
+    required this.onChanged,
+  });
   @override
   State<_NameInput> createState() => _NameInputState();
 }
@@ -415,9 +543,16 @@ class _NameInput extends StatefulWidget {
 class _NameInputState extends State<_NameInput> {
   late final TextEditingController _ctrl;
   @override
-  void initState() { super.initState(); _ctrl = TextEditingController(text: widget.initial); }
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initial);
+  }
+
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -429,10 +564,22 @@ class _NameInputState extends State<_NameInput> {
         hintText: widget.hint,
         hintStyle: const TextStyle(color: kTextSoft, fontSize: 13),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kLine)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kLine)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kAccent)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: kAccent),
+        ),
       ),
     );
   }
@@ -447,13 +594,18 @@ class _RemoveBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36, height: 36,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           color: kDanger.withOpacity(0.08),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: kDanger.withOpacity(0.25)),
         ),
-        child: const Icon(Icons.delete_outline, color: kDanger, size: 16),
+        child: const PhosphorIcon(
+          PhosphorIconsLight.trash,
+          color: kDanger,
+          size: 16,
+        ),
       ),
     );
   }
@@ -465,7 +617,12 @@ class _AssetRow extends StatelessWidget {
   final VoidCallback onRemove;
   final void Function(String name, double amount) onChanged;
 
-  const _AssetRow({required this.index, required this.item, required this.onRemove, required this.onChanged});
+  const _AssetRow({
+    required this.index,
+    required this.item,
+    required this.onRemove,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -475,12 +632,19 @@ class _AssetRow extends StatelessWidget {
         children: [
           Expanded(
             flex: 5,
-            child: _NameInput(initial: item.name, hint: 'Nombre', onChanged: (v) => onChanged(v, item.amount)),
+            child: _NameInput(
+              initial: item.name,
+              hint: 'Nombre',
+              onChanged: (v) => onChanged(v, item.amount),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             flex: 4,
-            child: _AmountInput(initial: item.amount, onChanged: (v) => onChanged(item.name, v)),
+            child: _AmountInput(
+              initial: item.amount,
+              onChanged: (v) => onChanged(item.name, v),
+            ),
           ),
           const SizedBox(width: 8),
           _RemoveBtn(onTap: onRemove),
@@ -495,7 +659,11 @@ class _LiabilityRow extends StatelessWidget {
   final Liability item;
   final VoidCallback onRemove;
 
-  const _LiabilityRow({required this.index, required this.item, required this.onRemove});
+  const _LiabilityRow({
+    required this.index,
+    required this.item,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -509,7 +677,10 @@ class _LiabilityRow extends StatelessWidget {
             child: _NameInput(
               initial: item.name,
               hint: 'Gasto fijo',
-              onChanged: (v) { item.name = v; state.notifyListeners(); },
+              onChanged: (v) {
+                item.name = v;
+                state.notifyListeners();
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -517,7 +688,10 @@ class _LiabilityRow extends StatelessWidget {
             flex: 4,
             child: _AmountInput(
               initial: item.amount,
-              onChanged: (v) { item.amount = v; state.notifyListeners(); },
+              onChanged: (v) {
+                item.amount = v;
+                state.notifyListeners();
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -533,7 +707,11 @@ class _CreditCardRow extends StatelessWidget {
   final CreditCard item;
   final VoidCallback onRemove;
 
-  const _CreditCardRow({required this.index, required this.item, required this.onRemove});
+  const _CreditCardRow({
+    required this.index,
+    required this.item,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -550,13 +728,20 @@ class _CreditCardRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.credit_card, color: kWarning, size: 14),
+              const PhosphorIcon(
+                PhosphorIconsLight.creditCard,
+                color: kWarning,
+                size: 14,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: _NameInput(
                   initial: item.name,
                   hint: 'Tarjeta de crédito',
-                  onChanged: (v) { item.name = v; state.notifyListeners(); },
+                  onChanged: (v) {
+                    item.name = v;
+                    state.notifyListeners();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -570,12 +755,18 @@ class _CreditCardRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Total deuda', style: TextStyle(color: kTextSoft, fontSize: 11)),
+                    const Text(
+                      'Total deuda',
+                      style: TextStyle(color: kTextSoft, fontSize: 11),
+                    ),
                     const SizedBox(height: 4),
                     _AmountInput(
                       initial: item.total,
                       compact: true,
-                      onChanged: (v) { item.total = v; state.notifyListeners(); },
+                      onChanged: (v) {
+                        item.total = v;
+                        state.notifyListeners();
+                      },
                     ),
                   ],
                 ),
@@ -585,12 +776,18 @@ class _CreditCardRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Pago mínimo', style: TextStyle(color: kTextSoft, fontSize: 11)),
+                    const Text(
+                      'Pago mínimo',
+                      style: TextStyle(color: kTextSoft, fontSize: 11),
+                    ),
                     const SizedBox(height: 4),
                     _AmountInput(
                       initial: item.minimum,
                       compact: true,
-                      onChanged: (v) { item.minimum = v; state.notifyListeners(); },
+                      onChanged: (v) {
+                        item.minimum = v;
+                        state.notifyListeners();
+                      },
                     ),
                   ],
                 ),

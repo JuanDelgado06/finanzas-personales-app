@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 
@@ -43,22 +44,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         },
         children: [
           _OnboardingPage(
-            icon: Icons.account_balance_wallet_outlined,
+            icon: PhosphorIconsLight.piggyBank,
             title: 'Tu presupuesto personal',
             subtitle: 'Controla activos, gastos y deudas en un solo lugar',
-            description: 'Crea presupuestos mensuales para organizar tu dinero y tomar decisiones financieras mejores.',
+            description:
+                'Crea presupuestos mensuales para organizar tu dinero y tomar decisiones financieras mejores.',
           ),
           _OnboardingPage(
-            icon: Icons.coffee_outlined,
+            icon: PhosphorIconsLight.coffee,
             title: 'Detecta fugas de dinero',
             subtitle: 'Registra gastos diarios',
-            description: 'Esos cafés pequeños suman. Controla tus gastos cotidianos para ver dónde se va realmente tu dinero.',
+            description:
+                'Esos cafés pequeños suman. Controla tus gastos cotidianos para ver dónde se va realmente tu dinero.',
           ),
           _OnboardingPage(
-            icon: Icons.bar_chart_outlined,
+            icon: PhosphorIconsLight.chartPieSlice,
             title: 'Visualiza tu progreso',
             subtitle: 'Gráficos y análisis',
-            description: 'Descubre tus patrones de gasto, categorías principales y compara mes a mes.',
+            description:
+                'Descubre tus patrones de gasto, categorías principales y compara mes a mes.',
           ),
         ],
       ),
@@ -97,9 +101,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: kLine),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        child: const Text('Atrás', style: TextStyle(color: kTextSoft)),
+                        child: const Text(
+                          'Atrás',
+                          style: TextStyle(color: kTextSoft),
+                        ),
                       ),
                     ),
                   if (_currentPage > 0) const SizedBox(width: 12),
@@ -164,7 +173,7 @@ class _OnboardingPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 40),
+                child: PhosphorIcon(icon, color: Colors.white, size: 40),
               ),
               const SizedBox(height: 32),
               Text(

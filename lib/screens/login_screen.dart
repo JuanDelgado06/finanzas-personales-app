@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
@@ -16,7 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _friendlyError(Object e) {
     final message = e.toString().toLowerCase();
-    if (message.contains('google-signin-misconfigured') || message.contains('apiexception: 10')) {
+    if (message.contains('google-signin-misconfigured') ||
+        message.contains('apiexception: 10')) {
       return 'Google Sign-In no esta configurado en Firebase para Android. Revisa SHA-1/SHA-256 y google-services.json.';
     }
     if (message.contains('sign in aborted')) {
@@ -26,7 +28,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInGoogle() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await _auth.signInWithGoogle();
     } catch (e) {
@@ -37,7 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _continueAnonymous() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await _auth.signInAnonymously();
     } catch (e) {
@@ -82,7 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 36),
+                  child: const PhosphorIcon(
+                    PhosphorIconsLight.wallet,
+                    color: Colors.white,
+                    size: 36,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -109,7 +121,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: kDanger.withOpacity(0.4)),
                     ),
-                    child: Text(_error!, style: const TextStyle(color: kDanger, fontSize: 13)),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: kDanger, fontSize: 13),
+                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -122,12 +137,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 52,
                     child: ElevatedButton.icon(
                       onPressed: _signInGoogle,
-                      icon: const Icon(Icons.login, size: 20),
+                      icon: const PhosphorIcon(
+                        PhosphorIconsLight.signIn,
+                        size: 20,
+                      ),
                       label: const Text('Continuar con Google'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kAccent,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ),
@@ -141,7 +161,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: kTextSoft,
                         side: const BorderSide(color: kLine),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       child: const Text('Continuar sin cuenta'),
                     ),

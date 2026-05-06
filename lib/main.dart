@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -118,10 +119,26 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   static const List<_NavItem> _navItems = [
-    _NavItem(Icons.coffee_outlined, Icons.coffee, 'Gastos diarios'),
-    _NavItem(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Presupuesto'),
-    _NavItem(Icons.bar_chart_outlined, Icons.bar_chart, 'Gráficos'),
-    _NavItem(Icons.folder_outlined, Icons.folder, 'Historial'),
+    _NavItem(
+      PhosphorIconsLight.coffee,
+      PhosphorIconsLight.coffee,
+      'Gastos diarios',
+    ),
+    _NavItem(
+      PhosphorIconsLight.wallet,
+      PhosphorIconsLight.piggyBank,
+      'Presupuesto',
+    ),
+    _NavItem(
+      PhosphorIconsLight.chartPieSlice,
+      PhosphorIconsLight.chartBar,
+      'Gráficos',
+    ),
+    _NavItem(
+      PhosphorIconsLight.folder,
+      PhosphorIconsLight.folderOpen,
+      'Historial',
+    ),
   ];
 
   static const List<Widget> _screens = [
@@ -140,11 +157,18 @@ class _HomeShellState extends State<HomeShell> {
         elevation: 0,
         title: Text(
           _navItems[_currentIndex].label,
-          style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 17),
+          style: const TextStyle(
+            color: kTextMain,
+            fontWeight: FontWeight.w600,
+            fontSize: 17,
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_outline, color: kTextSoft),
+            icon: const PhosphorIcon(
+              PhosphorIconsLight.userCircle,
+              color: kTextSoft,
+            ),
             onPressed: () => _showProfileSheet(context),
           ),
         ],
@@ -173,21 +197,40 @@ class _HomeShellState extends State<HomeShell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: kLine, borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: kLine,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 20),
             CircleAvatar(
               radius: 28,
-              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+              backgroundImage: user?.photoURL != null
+                  ? NetworkImage(user!.photoURL!)
+                  : null,
               backgroundColor: kAccent.withOpacity(0.2),
-              child: user?.photoURL == null ? const Icon(Icons.person, color: kAccent) : null,
+              child: user?.photoURL == null
+                  ? const PhosphorIcon(PhosphorIconsLight.user, color: kAccent)
+                  : null,
             ),
             const SizedBox(height: 12),
             Text(
-              user?.displayName ?? (auth.isAnonymous ? 'Usuario anónimo' : 'Usuario'),
-              style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 16),
+              user?.displayName ??
+                  (auth.isAnonymous ? 'Usuario anónimo' : 'Usuario'),
+              style: const TextStyle(
+                color: kTextMain,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
             ),
             if (user?.email != null)
-              Text(user!.email!, style: const TextStyle(color: kTextSoft, fontSize: 13)),
+              Text(
+                user!.email!,
+                style: const TextStyle(color: kTextSoft, fontSize: 13),
+              ),
             const SizedBox(height: 20),
             if (auth.isAnonymous)
               SizedBox(
@@ -196,7 +239,8 @@ class _HomeShellState extends State<HomeShell> {
                   onPressed: () async {
                     Navigator.pop(context);
                     try {
-                      final migrated = await appState.linkAnonymousWithGoogleAndMigrateBudgets();
+                      final migrated = await appState
+                          .linkAnonymousWithGoogleAndMigrateBudgets();
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -220,7 +264,7 @@ class _HomeShellState extends State<HomeShell> {
                       );
                     }
                   },
-                  icon: const Icon(Icons.link),
+                  icon: const PhosphorIcon(PhosphorIconsLight.link),
                   label: const Text('Vincular con Google'),
                 ),
               ),
@@ -232,9 +276,17 @@ class _HomeShellState extends State<HomeShell> {
                   Navigator.pop(context);
                   await auth.signOut();
                 },
-                icon: const Icon(Icons.logout, color: kDanger),
-                label: const Text('Cerrar sesión', style: TextStyle(color: kDanger)),
-                style: OutlinedButton.styleFrom(side: const BorderSide(color: kDanger)),
+                icon: const PhosphorIcon(
+                  PhosphorIconsLight.signOut,
+                  color: kDanger,
+                ),
+                label: const Text(
+                  'Cerrar sesión',
+                  style: TextStyle(color: kDanger),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: kDanger),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -256,7 +308,11 @@ class _PillNavBar extends StatelessWidget {
   final int currentIndex;
   final List<_NavItem> items;
   final ValueChanged<int> onTap;
-  const _PillNavBar({required this.currentIndex, required this.items, required this.onTap});
+  const _PillNavBar({
+    required this.currentIndex,
+    required this.items,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -281,13 +337,15 @@ class _PillNavBar extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: isActive ? kAccent.withOpacity(0.15) : Colors.transparent,
+                      color: isActive
+                          ? kAccent.withOpacity(0.15)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        PhosphorIcon(
                           isActive ? e.value.activeIcon : e.value.icon,
                           color: isActive ? kAccent : kTextSoft,
                           size: 22,
@@ -298,7 +356,9 @@ class _PillNavBar extends StatelessWidget {
                           style: TextStyle(
                             color: isActive ? kAccent : kTextSoft,
                             fontSize: 11,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: isActive
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),

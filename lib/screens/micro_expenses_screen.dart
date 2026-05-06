@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../models/budget_item.dart';
@@ -8,16 +9,26 @@ import '../theme/app_theme.dart';
 // ── Category icon helper ──────────────────────────────────────────────────────
 IconData _categoryIcon(String category) {
   switch (category.toLowerCase()) {
-    case 'comida': return Icons.restaurant_outlined;
-    case 'transporte': return Icons.directions_bus_outlined;
-    case 'mercado': return Icons.shopping_cart_outlined;
-    case 'salud': return Icons.favorite_border;
-    case 'hogar': return Icons.home_outlined;
-    default: return Icons.label_outline;
+    case 'comida':
+      return PhosphorIconsLight.forkKnife;
+    case 'transporte':
+      return PhosphorIconsLight.bus;
+    case 'mercado':
+      return PhosphorIconsLight.shoppingCartSimple;
+    case 'salud':
+      return PhosphorIconsLight.heartbeat;
+    case 'hogar':
+      return PhosphorIconsLight.houseLine;
+    default:
+      return PhosphorIconsLight.tag;
   }
 }
 
-void _showAddExpenseSheet(BuildContext context, AppState state, {int? editIndex}) {
+void _showAddExpenseSheet(
+  BuildContext context,
+  AppState state, {
+  int? editIndex,
+}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -51,21 +62,22 @@ class MicroExpensesScreen extends StatelessWidget {
           if (state.microExpenses.isEmpty)
             SliverToBoxAdapter(child: _EmptyMicroState(state: state))
           else
-            SliverList.builder(
-              itemCount: state.microExpenses.length,
-              itemBuilder: (context, index) =>
-                  _MicroExpenseRow(index: index, state: state),
-            ),
+            _GroupedExpenseList(state: state),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: ElevatedButton.icon(
-                onPressed: () => _showAddExpenseSheet(context, state),
-                icon: const Icon(Icons.add, size: 18),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _showAddExpenseSheet(context, state);
+                },
+                icon: const PhosphorIcon(PhosphorIconsLight.plus, size: 18),
                 label: const Text('Nuevo gasto'),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
@@ -92,29 +104,46 @@ class _SaveStatusBar extends StatelessWidget {
           ? _statusRow(
               key: const ValueKey('saving'),
               icon: const SizedBox(
-                width: 12, height: 12,
-                child: CircularProgressIndicator(strokeWidth: 1.5, color: kTextSoft),
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: kTextSoft,
+                ),
               ),
               label: 'Guardando…',
               color: kTextSoft,
             )
           : state.lastSaveOk
-              ? _statusRow(
-                  key: const ValueKey('ok'),
-                  icon: const Icon(Icons.check_circle_outline, color: kSuccess, size: 14),
-                  label: 'Guardado',
-                  color: kSuccess,
-                )
-              : _statusRow(
-                  key: const ValueKey('err'),
-                  icon: const Icon(Icons.error_outline, color: kDanger, size: 14),
-                  label: 'Error al guardar',
-                  color: kDanger,
-                ),
+          ? _statusRow(
+              key: const ValueKey('ok'),
+              icon: const PhosphorIcon(
+                PhosphorIconsLight.checkCircle,
+                color: kSuccess,
+                size: 14,
+              ),
+              label: 'Guardado',
+              color: kSuccess,
+            )
+          : _statusRow(
+              key: const ValueKey('err'),
+              icon: const PhosphorIcon(
+                PhosphorIconsLight.warningCircle,
+                color: kDanger,
+                size: 14,
+              ),
+              label: 'Error al guardar',
+              color: kDanger,
+            ),
     );
   }
 
-  Widget _statusRow({required Key key, required Widget icon, required String label, required Color color}) {
+  Widget _statusRow({
+    required Key key,
+    required Widget icon,
+    required String label,
+    required Color color,
+  }) {
     return Padding(
       key: key,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -144,17 +173,26 @@ class _EmptyMicroState extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 56, height: 56,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               color: kAccent.withOpacity(0.12),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.receipt_long_outlined, color: kAccent, size: 26),
+            child: const PhosphorIcon(
+              PhosphorIconsLight.receipt,
+              color: kAccent,
+              size: 26,
+            ),
           ),
           const SizedBox(height: 14),
           const Text(
             'Sin gastos por ahora',
-            style: TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 15),
+            style: TextStyle(
+              color: kTextMain,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -164,12 +202,24 @@ class _EmptyMicroState extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           OutlinedButton.icon(
-            onPressed: () => _showAddExpenseSheet(context, state),
-            icon: const Icon(Icons.add, size: 16, color: kAccent),
-            label: const Text('Agregar primer gasto', style: TextStyle(color: kAccent)),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _showAddExpenseSheet(context, state);
+            },
+            icon: const PhosphorIcon(
+              PhosphorIconsLight.plus,
+              size: 16,
+              color: kAccent,
+            ),
+            label: const Text(
+              'Agregar primer gasto',
+              style: TextStyle(color: kAccent),
+            ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: kAccent),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -178,65 +228,437 @@ class _EmptyMicroState extends StatelessWidget {
   }
 }
 
-// ── Expense row (read-only, tap to edit) ──────────────────────────────────────
-class _MicroExpenseRow extends StatelessWidget {
-  final int index;
+class _ExpenseListEntry {
+  final String keyValue;
+  final String category;
+  final bool isHeader;
+  final int count;
+  final double total;
+  final bool isCollapsed;
+  final bool isFirstSection;
+  final int? index;
+  final MicroExpense? item;
+  final bool isLastInGroup;
+
+  const _ExpenseListEntry.header({
+    required this.keyValue,
+    required this.category,
+    required this.count,
+    required this.total,
+    required this.isCollapsed,
+    required this.isFirstSection,
+  }) : isHeader = true,
+       index = null,
+       item = null,
+       isLastInGroup = false;
+
+  const _ExpenseListEntry.item({
+    required this.keyValue,
+    required this.category,
+    required this.index,
+    required this.item,
+    required this.isLastInGroup,
+  }) : isHeader = false,
+       count = 0,
+       total = 0,
+       isCollapsed = false,
+       isFirstSection = false;
+}
+
+List<_ExpenseListEntry> _buildExpenseEntries(
+  AppState state,
+  Set<String> collapsedCategories,
+) {
+  final Map<String, List<(int, MicroExpense)>> groups = {};
+  for (var i = 0; i < state.microExpenses.length; i++) {
+    final expense = state.microExpenses[i];
+    groups.putIfAbsent(expense.category, () => []).add((i, expense));
+  }
+
+  final entries = <_ExpenseListEntry>[];
+  var sectionIndex = 0;
+  for (final group in groups.entries) {
+    final items = group.value;
+    final collapsed = collapsedCategories.contains(group.key);
+    final total = items.fold(0.0, (sum, item) => sum + item.$2.amount);
+    entries.add(
+      _ExpenseListEntry.header(
+        keyValue: 'header:${group.key}',
+        category: group.key,
+        count: items.length,
+        total: total,
+        isCollapsed: collapsed,
+        isFirstSection: sectionIndex == 0,
+      ),
+    );
+    if (!collapsed) {
+      for (var i = 0; i < items.length; i++) {
+        final record = items[i];
+        entries.add(
+          _ExpenseListEntry.item(
+            keyValue: 'item:${record.$2.id}',
+            category: group.key,
+            index: record.$1,
+            item: record.$2,
+            isLastInGroup: i == items.length - 1,
+          ),
+        );
+      }
+    }
+    sectionIndex++;
+  }
+  return entries;
+}
+
+bool _isSubsequence(List<String> smaller, List<String> bigger) {
+  var smallIndex = 0;
+  for (final value in bigger) {
+    if (smallIndex < smaller.length && smaller[smallIndex] == value) {
+      smallIndex++;
+    }
+  }
+  return smallIndex == smaller.length;
+}
+
+bool _sameKeyOrder(List<_ExpenseListEntry> a, List<_ExpenseListEntry> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i].keyValue != b[i].keyValue) return false;
+  }
+  return true;
+}
+
+// ── Grouped expense list ─────────────────────────────────────────────────────
+class _GroupedExpenseList extends StatefulWidget {
   final AppState state;
-  const _MicroExpenseRow({required this.index, required this.state});
+  const _GroupedExpenseList({required this.state});
+
+  @override
+  State<_GroupedExpenseList> createState() => _GroupedExpenseListState();
+}
+
+class _GroupedExpenseListState extends State<_GroupedExpenseList> {
+  final _listKey = GlobalKey<SliverAnimatedListState>();
+  final Set<String> _collapsedCategories = <String>{};
+  late List<_ExpenseListEntry> _entries;
+
+  @override
+  void initState() {
+    super.initState();
+    _entries = _buildExpenseEntries(widget.state, _collapsedCategories);
+  }
+
+  @override
+  void didUpdateWidget(covariant _GroupedExpenseList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _applyEntries(_buildExpenseEntries(widget.state, _collapsedCategories));
+  }
+
+  void _toggleCategory(String category) {
+    setState(() {
+      if (!_collapsedCategories.add(category)) {
+        _collapsedCategories.remove(category);
+      }
+    });
+    _applyEntries(_buildExpenseEntries(widget.state, _collapsedCategories));
+  }
+
+  void _applyEntries(List<_ExpenseListEntry> nextEntries) {
+    if (!mounted) return;
+    if (_listKey.currentState == null || _sameKeyOrder(_entries, nextEntries)) {
+      setState(() => _entries = nextEntries);
+      return;
+    }
+
+    final oldKeys = _entries.map((entry) => entry.keyValue).toList();
+    final newKeys = nextEntries.map((entry) => entry.keyValue).toList();
+
+    if (_isSubsequence(oldKeys, newKeys)) {
+      var oldIndex = 0;
+      for (var newIndex = 0; newIndex < newKeys.length; newIndex++) {
+        if (oldIndex < oldKeys.length &&
+            oldKeys[oldIndex] == newKeys[newIndex]) {
+          oldIndex++;
+          continue;
+        }
+        _entries.insert(newIndex, nextEntries[newIndex]);
+        _listKey.currentState!.insertItem(
+          newIndex,
+          duration: const Duration(milliseconds: 260),
+        );
+      }
+      setState(() => _entries = nextEntries);
+      return;
+    }
+
+    if (_isSubsequence(newKeys, oldKeys)) {
+      for (var oldIndex = oldKeys.length - 1; oldIndex >= 0; oldIndex--) {
+        if (newKeys.contains(oldKeys[oldIndex])) continue;
+        final removedEntry = _entries.removeAt(oldIndex);
+        _listKey.currentState!.removeItem(
+          oldIndex,
+          (context, animation) => _AnimatedExpenseEntry(
+            animation: animation,
+            child: _buildEntry(removedEntry),
+          ),
+          duration: const Duration(milliseconds: 220),
+        );
+      }
+      setState(() => _entries = nextEntries);
+      return;
+    }
+
+    setState(() => _entries = nextEntries);
+  }
+
+  Widget _buildEntry(_ExpenseListEntry entry) {
+    return entry.isHeader
+        ? _CategoryHeaderTile(
+            category: entry.category,
+            count: entry.count,
+            total: entry.total,
+            isCollapsed: entry.isCollapsed,
+            isFirstSection: entry.isFirstSection,
+            onTap: () => _toggleCategory(entry.category),
+          )
+        : _MicroExpenseRow(
+            index: entry.index!,
+            item: entry.item!,
+            state: widget.state,
+            category: entry.category,
+            isLastInGroup: entry.isLastInGroup,
+          );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final item = state.microExpenses[index];
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+      sliver: SliverAnimatedList(
+        key: _listKey,
+        initialItemCount: _entries.length,
+        itemBuilder: (context, index, animation) => _AnimatedExpenseEntry(
+          animation: animation,
+          child: _buildEntry(_entries[index]),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnimatedExpenseEntry extends StatelessWidget {
+  final Animation<double> animation;
+  final Widget child;
+  const _AnimatedExpenseEntry({required this.animation, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SizeTransition(
+        sizeFactor: curved,
+        axisAlignment: -1,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.04),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryHeaderTile extends StatelessWidget {
+  final String category;
+  final int count;
+  final double total;
+  final bool isCollapsed;
+  final bool isFirstSection;
+  final VoidCallback onTap;
+  const _CategoryHeaderTile({
+    required this.category,
+    required this.count,
+    required this.total,
+    required this.isCollapsed,
+    required this.isFirstSection,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = kAccent;
+    return Container(
+      margin: EdgeInsets.fromLTRB(16, isFirstSection ? 0 : 10, 16, 0),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kLineSoft),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: kAccent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: PhosphorIcon(
+                  _categoryIcon(category),
+                  size: 17,
+                  color: kAccent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        color: kTextMain,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      '$count ${count == 1 ? 'gasto' : 'gastos'}',
+                      style: const TextStyle(color: kTextSoft, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                formatCurrencyFull(total),
+                style: const TextStyle(
+                  color: kWarning,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(width: 8),
+              AnimatedRotation(
+                turns: isCollapsed ? -0.25 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: const PhosphorIcon(
+                  PhosphorIconsLight.caretDown,
+                  color: kTextSoft,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MicroExpenseRow extends StatelessWidget {
+  final int index;
+  final MicroExpense item;
+  final String category;
+  final bool isLastInGroup;
+  final AppState state;
+  const _MicroExpenseRow({
+    required this.index,
+    required this.item,
+    required this.category,
+    required this.isLastInGroup,
+    required this.state,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => _showAddExpenseSheet(context, state, editIndex: index),
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kLineSoft),
+          border: Border(top: BorderSide(color: kLineSoft)),
+          borderRadius: isLastInGroup
+              ? const BorderRadius.vertical(bottom: Radius.circular(16))
+              : BorderRadius.zero,
         ),
         child: Row(
           children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: kAccent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(_categoryIcon(item.category), size: 18, color: kAccent),
-            ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 4),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.category,
-                    style: const TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 14),
+                    category,
+                    style: const TextStyle(
+                      color: kTextMain,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
-                  Text(
-                    item.paymentMethod.isEmpty ? '—' : item.paymentMethod,
-                    style: const TextStyle(color: kTextSoft, fontSize: 12),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const PhosphorIcon(
+                        PhosphorIconsLight.wallet,
+                        size: 12,
+                        color: kTextSoft,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          item.paymentMethod.isEmpty
+                              ? 'Sin método de pago'
+                              : item.paymentMethod,
+                          style: const TextStyle(
+                            color: kTextSoft,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
             Text(
               formatCurrencyFull(item.amount),
-              style: const TextStyle(color: kWarning, fontWeight: FontWeight.w700, fontSize: 15),
+              style: const TextStyle(
+                color: kTextMain,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(width: 10),
             GestureDetector(
               onTap: () => state.removeMicroExpense(index),
               child: Container(
-                width: 30, height: 30,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: kDanger.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.delete_outline, color: kDanger, size: 15),
+                child: const PhosphorIcon(
+                  PhosphorIconsLight.trash,
+                  color: kDanger,
+                  size: 15,
+                ),
               ),
             ),
           ],
@@ -265,14 +687,20 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
   void initState() {
     super.initState();
     final cats = widget.state.microExpenseCategories;
-    final pays = widget.state.assetNames.isNotEmpty ? widget.state.assetNames : ['Efectivo'];
+    final pays = widget.state.assetNames.isNotEmpty
+        ? widget.state.assetNames
+        : ['Efectivo'];
     if (widget.editIndex != null) {
       final item = widget.state.microExpenses[widget.editIndex!];
       _amountCtrl = TextEditingController(
         text: item.amount == 0 ? '' : item.amount.toStringAsFixed(0),
       );
-      _selectedCategory = cats.contains(item.category) ? item.category : cats.first;
-      _selectedPayment = pays.contains(item.paymentMethod) ? item.paymentMethod : pays.first;
+      _selectedCategory = cats.contains(item.category)
+          ? item.category
+          : cats.first;
+      _selectedPayment = pays.contains(item.paymentMethod)
+          ? item.paymentMethod
+          : pays.first;
     } else {
       _amountCtrl = TextEditingController();
       _selectedCategory = cats.isNotEmpty ? cats.first : 'Otros';
@@ -318,10 +746,14 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
   Widget build(BuildContext context) {
     final isEdit = widget.editIndex != null;
     final cats = widget.state.microExpenseCategories;
-    final pays = widget.state.assetNames.isNotEmpty ? widget.state.assetNames : ['Efectivo'];
+    final pays = widget.state.assetNames.isNotEmpty
+        ? widget.state.assetNames
+        : ['Efectivo'];
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
@@ -332,7 +764,8 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
               // Drag handle
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: kLine,
                     borderRadius: BorderRadius.circular(2),
@@ -342,7 +775,11 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
               const SizedBox(height: 18),
               Text(
                 isEdit ? 'Editar gasto' : 'Nuevo gasto',
-                style: const TextStyle(color: kTextMain, fontSize: 18, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: kTextMain,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 28),
 
@@ -352,7 +789,12 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                   children: [
                     const Text(
                       'MONTO',
-                      style: TextStyle(color: kTextSoft, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: kTextSoft,
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -364,7 +806,11 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                           padding: EdgeInsets.only(bottom: 6),
                           child: Text(
                             '\$',
-                            style: TextStyle(color: kTextSoft, fontSize: 22, fontWeight: FontWeight.w400),
+                            style: TextStyle(
+                              color: kTextSoft,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -372,8 +818,14 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                           child: TextField(
                             controller: _amountCtrl,
                             autofocus: !isEdit,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
                             style: const TextStyle(
                               color: kTextMain,
                               fontSize: 44,
@@ -400,7 +852,8 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      height: 2, width: 120,
+                      height: 2,
+                      width: 120,
                       decoration: BoxDecoration(
                         color: kAccent.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(1),
@@ -414,7 +867,12 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
               // ── Category ─────────────────────────────────────────────────
               const Text(
                 'CATEGORÍA',
-                style: TextStyle(color: kTextSoft, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: kTextSoft,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -426,7 +884,10 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                     onTap: () => setState(() => _selectedCategory = cat),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
                         color: selected ? kAccent : kSurfaceHover,
                         borderRadius: BorderRadius.circular(10),
@@ -446,7 +907,9 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                             style: TextStyle(
                               color: selected ? Colors.white : kTextMain,
                               fontSize: 13,
-                              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                             ),
                           ),
                         ],
@@ -460,7 +923,12 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
               // ── Payment method ────────────────────────────────────────────
               const Text(
                 'PAGADO CON',
-                style: TextStyle(color: kTextSoft, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: kTextSoft,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 10),
               SingleChildScrollView(
@@ -474,17 +942,22 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                         onTap: () => setState(() => _selectedPayment = pay),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 9,
+                          ),
                           decoration: BoxDecoration(
                             color: selected ? kSurface : Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: selected ? kAccent : kLine),
+                            border: Border.all(
+                              color: selected ? kAccent : kLine,
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.account_balance_wallet_outlined,
+                                PhosphorIconsLight.wallet,
                                 size: 13,
                                 color: selected ? kAccent : kTextSoft,
                               ),
@@ -494,7 +967,9 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                                 style: TextStyle(
                                   color: selected ? kAccent : kTextMain,
                                   fontSize: 13,
-                                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
                                 ),
                               ),
                             ],
@@ -512,11 +987,16 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                 onPressed: _confirm,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: Text(
                   isEdit ? 'Guardar cambios' : 'Agregar gasto',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
                 ),
               ),
             ],
@@ -545,19 +1025,31 @@ class _CategoriesRow extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 32, height: 32,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: kAccent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.label_outline, color: kAccent, size: 16),
+              child: const PhosphorIcon(
+                PhosphorIconsLight.tag,
+                color: kAccent,
+                size: 16,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Categorías', style: TextStyle(color: kTextMain, fontWeight: FontWeight.w600, fontSize: 14)),
+                  const Text(
+                    'Categorías',
+                    style: TextStyle(
+                      color: kTextMain,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                   Text(
                     customCount > 0
                         ? '${state.microExpenseCategories.length} categorías ($customCount personalizadas)'
@@ -567,7 +1059,11 @@ class _CategoriesRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: kTextSoft, size: 18),
+            const PhosphorIcon(
+              PhosphorIconsLight.caretRight,
+              color: kTextSoft,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -594,7 +1090,9 @@ class _CategoriesSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.55,
@@ -603,23 +1101,58 @@ class _CategoriesSheet extends StatelessWidget {
         builder: (_, scrollController) => Column(
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: kLine, borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: kLine,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  const Text('Categorías', style: TextStyle(color: kTextMain, fontWeight: FontWeight.w700, fontSize: 16)),
+                  const Text(
+                    'Categorías',
+                    style: TextStyle(
+                      color: kTextMain,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => _showAddCategory(context, state),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: kAccent.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text('+ Nueva', style: TextStyle(color: kAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PhosphorIcon(
+                            PhosphorIconsLight.plus,
+                            color: kAccent,
+                            size: 12,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            '+ Nueva',
+                            style: TextStyle(
+                              color: kAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -630,29 +1163,47 @@ class _CategoriesSheet extends StatelessWidget {
             Expanded(
               child: ListView(
                 controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 children: state.microExpenseCategories.map((cat) {
                   final isDefault = kDefaultCategories.contains(cat);
                   return ListTile(
                     dense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                     leading: Container(
-                      width: 32, height: 32,
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
                         color: kSurfaceHover,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.label_outline, color: kTextSoft, size: 15),
+                      child: const PhosphorIcon(
+                        PhosphorIconsLight.tag,
+                        color: kTextSoft,
+                        size: 15,
+                      ),
                     ),
-                    title: Text(cat, style: const TextStyle(color: kTextMain, fontSize: 14)),
+                    title: Text(
+                      cat,
+                      style: const TextStyle(color: kTextMain, fontSize: 14),
+                    ),
                     trailing: isDefault
-                        ? const Text('por defecto', style: TextStyle(color: kTextSoft, fontSize: 11))
+                        ? const Text(
+                            'por defecto',
+                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                          )
                         : GestureDetector(
                             onTap: () {
                               state.removeCategory(cat);
                               Navigator.pop(context);
                             },
-                            child: const Icon(Icons.delete_outline, color: kDanger, size: 18),
+                            child: const PhosphorIcon(
+                              PhosphorIconsLight.trash,
+                              color: kDanger,
+                              size: 18,
+                            ),
                           ),
                   );
                 }).toList(),
@@ -670,7 +1221,10 @@ class _CategoriesSheet extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Nueva categoría', style: TextStyle(color: kTextMain)),
+        title: const Text(
+          'Nueva categoría',
+          style: TextStyle(color: kTextMain),
+        ),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -678,7 +1232,10 @@ class _CategoriesSheet extends StatelessWidget {
           decoration: const InputDecoration(hintText: 'Nombre de la categoría'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: kTextSoft))),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: kTextSoft)),
+          ),
           TextButton(
             onPressed: () {
               state.addCategory(ctrl.text);
@@ -703,12 +1260,20 @@ class _MiniBalanceCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(20),
-      decoration: cardDecoration(borderColor: isPositive ? kSuccess.withOpacity(0.3) : kDanger.withOpacity(0.3)),
+      decoration: cardDecoration(
+        borderColor: isPositive
+            ? kSuccess.withOpacity(0.3)
+            : kDanger.withOpacity(0.3),
+      ),
       child: Column(
         children: [
           Text(
             state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-            style: const TextStyle(color: kTextSoft, fontSize: 13, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: kTextSoft,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 4),
           TweenAnimationBuilder<double>(
@@ -726,13 +1291,28 @@ class _MiniBalanceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          const Text('Balance neto', style: TextStyle(color: kTextSoft, fontSize: 12)),
+          const Text(
+            'Balance neto',
+            style: TextStyle(color: kTextSoft, fontSize: 12),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
-              _BalTile(label: 'Activos', value: state.totalAssets, color: kSuccess),
-              _BalTile(label: 'Gastos fijos', value: state.totalLiabilitiesWithoutMicro, color: kDanger),
-              _BalTile(label: 'Gastos diarios', value: state.totalMicroExpenses, color: kWarning),
+              _BalTile(
+                label: 'Activos',
+                value: state.totalAssets,
+                color: kSuccess,
+              ),
+              _BalTile(
+                label: 'Gastos fijos',
+                value: state.totalLiabilitiesWithoutMicro,
+                color: kDanger,
+              ),
+              _BalTile(
+                label: 'Gastos diarios',
+                value: state.totalMicroExpenses,
+                color: kWarning,
+              ),
             ],
           ),
         ],
@@ -745,16 +1325,31 @@ class _BalTile extends StatelessWidget {
   final String label;
   final double value;
   final Color color;
-  const _BalTile({required this.label, required this.value, required this.color});
+  const _BalTile({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Text(formatCurrency(value), style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(
+            formatCurrency(value),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: kTextSoft, fontSize: 10), textAlign: TextAlign.center),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSoft, fontSize: 10),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
