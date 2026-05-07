@@ -1360,25 +1360,25 @@ class _MiniBalanceCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF070707), Color(0xFF121314), Color(0xFF050505)],
+            colors: [kSurface, Color(0xFF0A1220), Color(0xFF090F1A)],
             stops: [0.0, 0.52, 1.0],
           ),
           border: Border.all(
             color: isPositive
-                ? const Color(0xFF53D8FF).withOpacity(0.42)
-                : kDanger.withOpacity(0.42),
+                ? kLine
+                : kDanger.withOpacity(0.26),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: (isPositive ? const Color(0xFF53D8FF) : kDanger).withOpacity(0.16),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              color: Colors.black.withOpacity(0.34),
+              blurRadius: 14,
+              offset: const Offset(0, 7),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 10),
+              color: kAccent.withOpacity(0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -1409,11 +1409,7 @@ class _MiniBalanceCard extends StatelessWidget {
                   children: [
                     Text(
                       state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-                      style: const TextStyle(
-                        color: Color(0xFF9FB2C2),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: const TextStyle(color: kTextSoft, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     TweenAnimationBuilder<double>(
@@ -1434,15 +1430,15 @@ class _MiniBalanceCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     const Text(
                       'Balance neto',
-                      style: TextStyle(color: Color(0xFFB5C2CE), fontSize: 14),
+                      style: TextStyle(color: kTextSoft, fontSize: 13),
                     ),
                     const SizedBox(height: 14),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.14),
+                        color: kSurfaceSoft.withOpacity(0.32),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        border: Border.all(color: kLineSoft),
                       ),
                       child: Row(
                         children: [
@@ -1484,7 +1480,7 @@ class _MiniDivider extends StatelessWidget {
       width: 1,
       height: 28,
       margin: const EdgeInsets.symmetric(horizontal: 2),
-      color: Colors.white.withOpacity(0.12),
+      color: kLine,
     );
   }
 }
@@ -1514,7 +1510,7 @@ class _BalTile extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(color: Color(0xFF98AABC), fontSize: 10.5),
+              style: const TextStyle(color: kTextSoft, fontSize: 10.5),
               textAlign: TextAlign.center),
         ],
       ),
@@ -1526,7 +1522,7 @@ class _BalanceTexturePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
-      ..color = Colors.white.withOpacity(0.03)
+      ..color = Colors.white.withOpacity(0.018)
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
@@ -1544,10 +1540,10 @@ class _BalanceTexturePainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.white.withOpacity(0.07),
+          Colors.white.withOpacity(0.035),
           Colors.transparent,
           Colors.transparent,
-          Colors.white.withOpacity(0.03),
+          Colors.white.withOpacity(0.02),
         ],
         stops: const [0.0, 0.3, 0.68, 1.0],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));

@@ -70,6 +70,29 @@ class AppState extends ChangeNotifier {
 
   String _normalizePaymentMethod(String value) => value.trim().toLowerCase();
 
+  CreditCard? _findCreditCardByPaymentMethod(String paymentMethod) {
+    final key = _normalizePaymentMethod(paymentMethod);
+    if (key.isEmpty) return null;
+    for (final card in creditCards) {
+      if (_normalizePaymentMethod(card.name) == key) return card;
+    }
+    return null;
+  }
+
+  void _applyCreditCardChargeDelta({
+    required String paymentMethod,
+    required double deltaAmount,
+  }) {
+    if (deltaAmount == 0) return;
+    final card = _findCreditCardByPaymentMethod(paymentMethod);
+    if (card == null) return;
+
+    final nextTotal = card.paymentTotal + deltaAmount;
+    card.paymentTotal = nextTotal > 0 ? nextTotal : 0;
+    final nextBalance = card.creditLimit - card.paymentTotal;
+    card.balance = nextBalance > 0 ? nextBalance : 0;
+  }
+
   Map<String, double> get availableAmountByItemId {
     final remainingById = <String, double>{};
     final itemsByMethod = <String, List<BudgetItem>>{};
@@ -260,6 +283,7 @@ class AppState extends ChangeNotifier {
       category: category,
       paymentMethod: paymentMethod,
     ));
+    _applyCreditCardChargeDelta(paymentMethod: paymentMethod, deltaAmount: amount);
     notifyListeners();
     _scheduleSave();
   }
@@ -269,21 +293,49 @@ class AppState extends ChangeNotifier {
     required String category,
     required String paymentMethod,
   }) {
+    final old = microExpenses[index];
+    _applyCreditCardChargeDelta(
+      paymentMethod: old.paymentMethod,
+      deltaAmount: -old.amount,
+    );
+
     microExpenses[index].amount = amount;
     microExpenses[index].category = category;
     microExpenses[index].paymentMethod = paymentMethod;
+
+    _applyCreditCardChargeDelta(paymentMethod: paymentMethod, deltaAmount: amount);
     notifyListeners();
     _scheduleSave();
   }
 
   void updateMicroExpense(int index, {double? amount, String? category, String? paymentMethod}) {
+    final old = microExpenses[index];
+    final oldAmount = old.amount;
+    final oldMethod = old.paymentMethod;
+
     if (amount != null) microExpenses[index].amount = amount;
     if (category != null) microExpenses[index].category = category;
     if (paymentMethod != null) microExpenses[index].paymentMethod = paymentMethod;
+
+    final next = microExpenses[index];
+    _applyCreditCardChargeDelta(
+      paymentMethod: oldMethod,
+      deltaAmount: -oldAmount,
+    );
+    _applyCreditCardChargeDelta(
+      paymentMethod: next.paymentMethod,
+      deltaAmount: next.amount,
+    );
+
     notifyListeners();
   }
 
   void removeMicroExpense(int index) {
+    final removed = microExpenses[index];
+    _applyCreditCardChargeDelta(
+      paymentMethod: removed.paymentMethod,
+      deltaAmount: -removed.amount,
+    );
     microExpenses.removeAt(index);
     notifyListeners();
     _scheduleSave();
