@@ -225,66 +225,143 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPositive = state.netWorth >= 0;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: cardDecoration(
-        borderColor: isPositive
-            ? kSuccess.withOpacity(0.3)
-            : kDanger.withOpacity(0.3),
-      ),
-      child: Column(
-        children: [
-          Text(
-            state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-            style: const TextStyle(
-              color: kTextSoft,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.985, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF070707), Color(0xFF121314), Color(0xFF050505)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+          border: Border.all(
+            color: isPositive
+                ? const Color(0xFF53D8FF).withOpacity(0.42)
+                : kDanger.withOpacity(0.42),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (isPositive ? const Color(0xFF53D8FF) : kDanger).withOpacity(0.16),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
-          ),
-          const SizedBox(height: 4),
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeOut,
-            builder: (context, value, _) => Text(
-              formatCurrencyFull(value),
-              style: TextStyle(
-                color: isPositive ? kSuccess : kDanger,
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -1,
-              ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 10),
             ),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'Balance neto',
-            style: TextStyle(color: kTextSoft, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          Row(
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
             children: [
-              _SummaryTile(
-                label: 'Activos',
-                value: state.totalAssets,
-                color: kSuccess,
+              Positioned.fill(
+                child: CustomPaint(painter: _SummaryTexturePainter()),
               ),
-              _SummaryTile(
-                label: 'Gastos fijos',
-                value: state.totalLiabilitiesWithoutMicro,
-                color: kDanger,
+              Positioned(
+                top: -42,
+                right: -28,
+                child: Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [Colors.white.withOpacity(0.08), Colors.transparent],
+                    ),
+                  ),
+                ),
               ),
-              _SummaryTile(
-                label: 'Gastos hormiga',
-                value: state.totalMicroExpenses,
-                color: kWarning,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                child: Column(
+                  children: [
+                    Text(
+                      state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
+                      style: const TextStyle(
+                        color: Color(0xFF9FB2C2),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => Text(
+                        formatCurrencyFull(value),
+                        style: TextStyle(
+                          color: isPositive ? const Color(0xFF23D47E) : const Color(0xFFFF6F7D),
+                          fontSize: 41,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.3,
+                          height: 0.95,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Balance neto',
+                      style: TextStyle(color: Color(0xFFB5C2CE), fontSize: 14),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                      ),
+                      child: Row(
+                        children: [
+                          _SummaryTile(
+                            label: 'Activos',
+                            value: state.totalAssets,
+                            color: kSuccess,
+                          ),
+                          _SummaryDivider(),
+                          _SummaryTile(
+                            label: 'Gastos fijos',
+                            value: state.totalLiabilitiesWithoutMicro,
+                            color: kDanger,
+                          ),
+                          _SummaryDivider(),
+                          _SummaryTile(
+                            label: 'Gastos hormiga',
+                            value: state.totalMicroExpenses,
+                            color: kWarning,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _SummaryDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 28,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      color: Colors.white.withOpacity(0.12),
     );
   }
 }
@@ -309,19 +386,54 @@ class _SummaryTile extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: 15,
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: kTextSoft, fontSize: 10),
-            textAlign: TextAlign.center,
-          ),
+          Text(label,
+              style: const TextStyle(color: Color(0xFF98AABC), fontSize: 10.5),
+              textAlign: TextAlign.center),
         ],
       ),
     );
   }
+}
+
+class _SummaryTexturePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = Colors.white.withOpacity(0.03)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    const spacing = 18.0;
+    for (double x = -size.height; x < size.width + size.height; x += spacing) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        linePaint,
+      );
+    }
+
+    final sheenPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withOpacity(0.07),
+          Colors.transparent,
+          Colors.transparent,
+          Colors.white.withOpacity(0.03),
+        ],
+        stops: const [0.0, 0.3, 0.68, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), sheenPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ── Month input ───────────────────────────────────────────────────────────────
@@ -800,6 +912,50 @@ class _RemoveBtn extends StatelessWidget {
   }
 }
 
+// ── Card texture painter (silk diagonal lines) ───────────────────────────────
+class _CardTexturePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.025)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    const spacing = 22.0;
+    for (double x = -size.height; x < size.width + size.height; x += spacing) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        paint,
+      );
+    }
+
+    // Reflejo luminoso diagonal superior
+    final sheen = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withOpacity(0.07),
+          Colors.transparent,
+          Colors.transparent,
+          Colors.white.withOpacity(0.03),
+        ],
+        stops: const [0.0, 0.35, 0.65, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        const Radius.circular(16),
+      ),
+      sheen,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _AssetRow extends StatelessWidget {
   final int index;
   final BudgetItem item;
@@ -957,95 +1113,65 @@ class _CreditCardRowState extends State<_CreditCardRow> {
           onTap: () => setState(() => _expanded = !_expanded),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            height: 190,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [plateDark, plateMid, plateDark],
-                stops: [0.0, 0.52, 1.0],
+                colors: [
+                  Color(0xFF0E0E0E),
+                  Color(0xFF1C1C1E),
+                  Color(0xFF111113),
+                ],
+                stops: [0.0, 0.55, 1.0],
               ),
-              border: Border.all(color: metal.withOpacity(0.32), width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.45),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: whiteInk.withOpacity(0.05),
-                  blurRadius: 0,
-                  spreadRadius: 1,
+                  color: Colors.black.withOpacity(0.55),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
             child: Stack(
               children: [
-                Positioned(
-                  left: -40,
-                  top: -30,
-                  child: Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          metal.withOpacity(0.15),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
+                // Textura: líneas diagonales tipo seda
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: CustomPaint(
+                    painter: _CardTexturePainter(),
+                    size: const Size(double.infinity, 190),
                   ),
                 ),
-                Positioned(
-                  right: -60,
-                  bottom: -60,
-                  child: Container(
-                    width: 220,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.09),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                // Contenido
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Top row: nombre + botón eliminar + logo
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Container(
-                            width: 44,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              gradient: LinearGradient(
-                                colors: [
-                                  metal.withOpacity(0.95),
-                                  const Color(0xFF8D95A2),
-                                ],
-                              ),
-                              border: Border.all(color: Colors.white.withOpacity(0.2)),
+                          Text(
+                            hasName ? cardName : 'Nueva Tarjeta',
+                            style: const TextStyle(
+                              color: Color(0xFFECEFF3),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.4,
                             ),
                           ),
-                          const SizedBox(width: 12),
                           const Spacer(),
                           GestureDetector(
                             onTap: widget.onRemove,
                             child: Container(
-                              width: 30,
-                              height: 30,
+                              width: 28,
+                              height: 28,
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.18),
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.red.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(7),
                               ),
                               child: Center(
                                 child: PhosphorIcon(
@@ -1056,148 +1182,156 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 10),
+                          // Logo doble círculo (estilo red de pago)
+                          SizedBox(
+                            width: 36,
+                            height: 22,
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 0,
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFEB001B),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 14,
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFFF79E1B).withOpacity(0.85),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
+                      // Número de tarjeta
                       Text(
-                        '37•• •••••• •$last4',
+                        '••••  ••••  ••••  $last4',
                         style: const TextStyle(
-                          color: whiteInk,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2.2,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        hasName ? cardName.toUpperCase() : 'NUEVA TARJETA',
-                        style: const TextStyle(
-                          color: whiteInk,
-                          fontSize: 12,
+                          color: Color(0xFFECEFF3),
+                          fontSize: 17,
                           fontWeight: FontWeight.w500,
-                          letterSpacing: 1.3,
+                          letterSpacing: 2.8,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const Spacer(),
+                      // Fecha de validez
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'SALDO ACTUAL',
+                              const Text(
+                                'VALID\nTHRU',
                                 style: TextStyle(
-                                  color: softMetal,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
+                                  color: Color(0xFF7D8592),
+                                  fontSize: 7,
+                                  height: 1.3,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
-                                formatCurrencyFull(widget.item.balance),
+                                widget.item.paymentDay != null
+                                    ? '${widget.item.cutoffDay ?? '--'}/${widget.item.paymentDay}'
+                                    : '--/--',
                                 style: const TextStyle(
-                                  color: whiteInk,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 18,
-                                  letterSpacing: -0.3,
+                                  color: Color(0xFFECEFF3),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(width: 24),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'CUPO',
+                                style: TextStyle(
+                                  color: const Color(0xFF7D8592),
+                                  fontSize: 8,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatCurrencyFull(widget.item.creditLimit),
+                                style: const TextStyle(
+                                  color: Color(0xFFECEFF3),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                'CUPO TOTAL',
+                                'SALDO',
                                 style: TextStyle(
-                                  color: softMetal,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
+                                  color: const Color(0xFF7D8592),
+                                  fontSize: 8,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
-                                formatCurrencyFull(widget.item.creditLimit),
+                                formatCurrencyFull(widget.item.balance),
                                 style: const TextStyle(
-                                  color: whiteInk,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 18,
-                                  letterSpacing: -0.3,
+                                  color: Color(0xFFECEFF3),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: (utilization / 100).toDouble(),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    metal.withOpacity(0.9),
-                                    Colors.white.withOpacity(0.85),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
+                      // Barra de utilización
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              widget.item.cutoffDay != null
-                                  ? 'CORTE ${widget.item.cutoffDay}'
-                                  : 'CORTE --',
-                              style: TextStyle(
-                                color: softMetal,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.9,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: LinearProgressIndicator(
+                                value: (utilization / 100).toDouble(),
+                                minHeight: 3,
+                                backgroundColor: Colors.white.withOpacity(0.1),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  utilization > 80
+                                      ? Colors.red.shade400
+                                      : const Color(0xFFBAC1CB),
+                                ),
                               ),
                             ),
                           ),
-                          Expanded(
-                            child: Text(
-                              widget.item.paymentDay != null
-                                  ? 'PAGO ${widget.item.paymentDay}'
-                                  : 'PAGO --',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: softMetal,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.9,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'USO ${utilization.toStringAsFixed(0)}%',
-                              textAlign: TextAlign.end,
-                              style: TextStyle(
-                                color: softMetal,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.9,
-                              ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'USO ${utilization.toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              color: Color(0xFF7D8592),
+                              fontSize: 9,
+                              letterSpacing: 0.6,
                             ),
                           ),
                         ],

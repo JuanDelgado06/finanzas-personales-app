@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
@@ -619,85 +620,139 @@ class _MicroExpenseRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showAddExpenseSheet(context, state, editIndex: index),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: kSurface,
-          border: Border(top: BorderSide(color: kLineSoft)),
-          borderRadius: isLastInGroup
-              ? const BorderRadius.vertical(bottom: Radius.circular(16))
-              : BorderRadius.zero,
+    final borderRadius = isLastInGroup
+        ? const BorderRadius.vertical(bottom: Radius.circular(16))
+        : BorderRadius.zero;
+
+    return Slidable(
+      key: ValueKey(item.id),
+      // ── Deslizar derecha → Editar ─────────────────────────────────────────
+      startActionPane: ActionPane(
+        motion: const BehindMotion(),
+        extentRatio: 0.22,
+        children: [
+          CustomSlidableAction(
+            onPressed: (_) {
+              HapticFeedback.lightImpact();
+              _showAddExpenseSheet(context, state, editIndex: index);
+            },
+            backgroundColor: kAccent,
+            borderRadius: BorderRadius.only(
+              bottomLeft: isLastInGroup ? const Radius.circular(16) : Radius.zero,
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                PhosphorIcon(PhosphorIconsLight.pencilSimple,
+                    color: Colors.white, size: 18),
+                SizedBox(height: 4),
+                Text('Editar',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      // ── Deslizar izquierda → Eliminar ─────────────────────────────────────
+      endActionPane: ActionPane(
+        motion: const BehindMotion(),
+        extentRatio: 0.22,
+        dismissible: DismissiblePane(
+          onDismissed: () {
+            HapticFeedback.mediumImpact();
+            state.removeMicroExpense(index);
+          },
         ),
-        child: Row(
-          children: [
-            const SizedBox(width: 4),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    category,
-                    style: const TextStyle(
-                      color: kTextMain,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+        children: [
+          CustomSlidableAction(
+            onPressed: (_) {
+              HapticFeedback.mediumImpact();
+              state.removeMicroExpense(index);
+            },
+            backgroundColor: kDanger,
+            borderRadius: BorderRadius.only(
+              bottomRight: isLastInGroup ? const Radius.circular(16) : Radius.zero,
+            ),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                PhosphorIcon(PhosphorIconsLight.trash,
+                    color: Colors.white, size: 18),
+                SizedBox(height: 4),
+                Text('Eliminar',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      child: GestureDetector(
+        onTap: () => _showAddExpenseSheet(context, state, editIndex: index),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: kSurface,
+            border: Border(top: BorderSide(color: kLineSoft)),
+            borderRadius: borderRadius,
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        color: kTextMain,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const PhosphorIcon(
-                        PhosphorIconsLight.wallet,
-                        size: 12,
-                        color: kTextSoft,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          item.paymentMethod.isEmpty
-                              ? 'Sin método de pago'
-                              : item.paymentMethod,
-                          style: const TextStyle(
-                            color: kTextSoft,
-                            fontSize: 12,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const PhosphorIcon(
+                          PhosphorIconsLight.wallet,
+                          size: 12,
+                          color: kTextSoft,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              formatCurrencyFull(item.amount),
-              style: const TextStyle(
-                color: kTextMain,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () => state.removeMicroExpense(index),
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: kDanger.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const PhosphorIcon(
-                  PhosphorIconsLight.trash,
-                  color: kDanger,
-                  size: 15,
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            item.paymentMethod.isEmpty
+                                ? 'Sin método de pago'
+                                : item.paymentMethod,
+                            style: const TextStyle(
+                              color: kTextSoft,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              Text(
+                formatCurrencyFull(item.amount),
+                style: const TextStyle(
+                  color: kTextMain,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1293,66 +1348,143 @@ class _MiniBalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPositive = state.netWorth >= 0;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: cardDecoration(
-        borderColor: isPositive
-            ? kSuccess.withOpacity(0.3)
-            : kDanger.withOpacity(0.3),
-      ),
-      child: Column(
-        children: [
-          Text(
-            state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-            style: const TextStyle(
-              color: kTextSoft,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.985, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF070707), Color(0xFF121314), Color(0xFF050505)],
+            stops: [0.0, 0.52, 1.0],
+          ),
+          border: Border.all(
+            color: isPositive
+                ? const Color(0xFF53D8FF).withOpacity(0.42)
+                : kDanger.withOpacity(0.42),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (isPositive ? const Color(0xFF53D8FF) : kDanger).withOpacity(0.16),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
-          ),
-          const SizedBox(height: 4),
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeOut,
-            builder: (context, value, _) => Text(
-              formatCurrencyFull(value),
-              style: TextStyle(
-                color: isPositive ? kSuccess : kDanger,
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -1,
-              ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 10),
             ),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'Balance neto',
-            style: TextStyle(color: kTextSoft, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          Row(
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
             children: [
-              _BalTile(
-                label: 'Activos',
-                value: state.totalAssets,
-                color: kSuccess,
+              Positioned.fill(
+                child: CustomPaint(painter: _BalanceTexturePainter()),
               ),
-              _BalTile(
-                label: 'Gastos fijos',
-                value: state.totalLiabilitiesWithoutMicro,
-                color: kDanger,
+              Positioned(
+                top: -42,
+                right: -28,
+                child: Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [Colors.white.withOpacity(0.08), Colors.transparent],
+                    ),
+                  ),
+                ),
               ),
-              _BalTile(
-                label: 'Gastos diarios',
-                value: state.totalMicroExpenses,
-                color: kWarning,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                child: Column(
+                  children: [
+                    Text(
+                      state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
+                      style: const TextStyle(
+                        color: Color(0xFF9FB2C2),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) => Text(
+                        formatCurrencyFull(value),
+                        style: TextStyle(
+                          color: isPositive ? const Color(0xFF23D47E) : const Color(0xFFFF6F7D),
+                          fontSize: 41,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.3,
+                          height: 0.95,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Balance neto',
+                      style: TextStyle(color: Color(0xFFB5C2CE), fontSize: 14),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                      ),
+                      child: Row(
+                        children: [
+                          _BalTile(
+                            label: 'Activos',
+                            value: state.totalAssets,
+                            color: kSuccess,
+                          ),
+                          _MiniDivider(),
+                          _BalTile(
+                            label: 'Gastos fijos',
+                            value: state.totalLiabilitiesWithoutMicro,
+                            color: kDanger,
+                          ),
+                          _MiniDivider(),
+                          _BalTile(
+                            label: 'Gastos diarios',
+                            value: state.totalMicroExpenses,
+                            color: kWarning,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _MiniDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 28,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      color: Colors.white.withOpacity(0.12),
     );
   }
 }
@@ -1377,17 +1509,52 @@ class _BalTile extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: 15,
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: kTextSoft, fontSize: 10),
-            textAlign: TextAlign.center,
-          ),
+          Text(label,
+              style: const TextStyle(color: Color(0xFF98AABC), fontSize: 10.5),
+              textAlign: TextAlign.center),
         ],
       ),
     );
   }
+}
+
+class _BalanceTexturePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = Colors.white.withOpacity(0.03)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    const spacing = 18.0;
+    for (double x = -size.height; x < size.width + size.height; x += spacing) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        linePaint,
+      );
+    }
+
+    final sheenPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withOpacity(0.07),
+          Colors.transparent,
+          Colors.transparent,
+          Colors.white.withOpacity(0.03),
+        ],
+        stops: const [0.0, 0.3, 0.68, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), sheenPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
