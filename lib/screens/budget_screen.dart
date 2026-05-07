@@ -442,14 +442,19 @@ class _MonthInput extends StatefulWidget {
 
 class _MonthInputState extends State<_MonthInput> {
   late final TextEditingController _ctrl;
+  late final FocusNode _focusNode;
+
   @override
   void initState() {
     super.initState();
     _ctrl = TextEditingController(text: widget.state.monthName);
+    _focusNode = FocusNode()..addListener(() => setState(() {}));
+    _ctrl.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -467,20 +472,122 @@ class _MonthInputState extends State<_MonthInput> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _ctrl,
-      onChanged: (v) {
-        widget.state.monthName = v;
-        widget.state.notifyListeners();
-      },
-      style: const TextStyle(color: kTextMain),
-      decoration: const InputDecoration(
-        hintText: 'Nombre del mes (ej. Enero 2025)',
-        prefixIcon: PhosphorIcon(
-          PhosphorIconsLight.calendarBlank,
-          color: kTextSoft,
-          size: 18,
+    final hasText = _ctrl.text.trim().isNotEmpty;
+    final isFocused = _focusNode.hasFocus;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            kSurface,
+            isFocused ? kSurfaceHover : kSurfaceSoft,
+          ],
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isFocused ? kAccent.withOpacity(0.45) : kLineSoft,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.22),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: kAccent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: kAccent.withOpacity(0.18)),
+                ),
+                child: const Center(
+                  child: PhosphorIcon(
+                    PhosphorIconsLight.calendarBlank,
+                    color: kAccent,
+                    size: 15,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Periodo del presupuesto',
+                  style: TextStyle(
+                    color: kTextSoft,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+              if (hasText)
+                GestureDetector(
+                  onTap: () {
+                    _ctrl.clear();
+                    widget.state.monthName = '';
+                    widget.state.notifyListeners();
+                  },
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: PhosphorIcon(
+                        PhosphorIconsLight.x,
+                        color: kTextSoft,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _ctrl,
+            focusNode: _focusNode,
+            onChanged: (v) {
+              widget.state.monthName = v;
+              widget.state.notifyListeners();
+            },
+            style: const TextStyle(
+              color: kTextMain,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
+            decoration: const InputDecoration(
+              hintText: 'Ej: Mayo 2026',
+              hintStyle: TextStyle(
+                color: kTextSoft,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              isDense: true,
+              filled: false,
+              contentPadding: EdgeInsets.zero,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+            ),
+          ),
+        ],
       ),
     );
   }

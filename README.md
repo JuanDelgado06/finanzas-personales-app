@@ -12,7 +12,7 @@ Una aplicación móvil Flutter para gestionar tu dinero, presupuestos mensuales 
 - **Activos**: Registra tus cuentas bancarias, billeteras digitales (Nequi, Uala, etc.) y efectivo disponible
 - **Dinero que te deben**: Realiza seguimiento a deudas de terceros hacia ti
 - **Gastos fijos**: Anota pagos recurrentes (servicios, arriendo, seguros, etc.)
-- **Tarjetas de crédito**: Gesiona independientemente tus créditos activos
+- **Tarjetas de crédito**: Gestiona independientemente tus créditos activos
 
 ### 🏧 Tarjetas de Crédito
 Cada tarjeta almacena:
@@ -27,6 +27,7 @@ Cada tarjeta almacena:
 - Registra gastos pequeños del día a día
 - Categorías: Comida, Transporte, Mercado, Salud, Hogar, Otros
 - Selecciona método de pago: tus cuentas o tarjetas de crédito
+- Acciones rápidas por deslizamiento (editar/eliminar)
 - Sincronización automática mientras escribes
 
 ### 📈 Análisis y Reportes
@@ -65,7 +66,7 @@ Cada tarjeta almacena:
 | **UI/UX** | Phosphor Icons, fl_chart, Material Design |
 | **Estado global** | Provider |
 | **Autenticación** | Firebase Auth + Google Sign-In |
-| **Persistencia local** | SharedPreferences, SQLite |
+| **Persistencia local** | SharedPreferences |
 | **Backend** | REST API (Next.js en Vercel) |
 | **Base de datos** | MongoDB Atlas |
 | **Hosting** | Vercel (API), Firebase (Auth) |
@@ -201,12 +202,13 @@ Estructura modular por secciones expandibles:
   - Expandible para editar todos los detalles
 
 ### 3️⃣ Gastos Hormiga
-- Botón flotante para agregar gasto rápidamente
+- Botón principal para agregar gasto rápidamente
 - Entrada en forma de modal con:
   - Monto (teclado numérico)
   - Categoría (dropdown)
   - Método de pago (activos o tarjetas)
 - Agrupación por categoría con collapse/expand
+- Acciones de editar/eliminar con swipe
 - Estado de guardado en tiempo real
 
 ### 4️⃣ Gráficos
@@ -236,6 +238,19 @@ Estructura modular por secciones expandibles:
 - Si hay conexión, se sincronizan automáticamente con la API
 - Si no hay conexión, se encolan y se envían cuando vuelva la conexión
 - Indicadores visuales de estado de sincronización
+
+### Fechas de Presupuesto
+- El campo `monthName` se guarda como texto plano (ejemplo: `Mayo 2026`)
+- Se usa como clave funcional para actualizar/cargar presupuestos mensuales
+
+---
+
+## 📌 Estado Actual (Mayo 2026)
+
+- Diseño visual premium aplicado en tarjetas de resumen y tarjetas de crédito
+- Gestión de micro gastos con interacción avanzada por deslizamiento
+- Soporte offline con cola de operaciones pendientes y sincronización posterior
+- Compatibilidad de tarjetas de crédito con formato legado del backend
 
 ### Métodos de Pago Flexibles
 - Los gastos hormiga se pueden asignar a cualquier activo o tarjeta de crédito
@@ -314,4 +329,4 @@ Este proyecto está bajo licencia MIT. Ver `LICENSE` para más detalles.
 
 ---
 
-**Última actualización**: Mayo 5, 2026
+**Última actualización**: Mayo 6, 2026
