@@ -52,10 +52,11 @@ class CreditCard {
         name: json['name'] ?? '',
         creditLimit:
             (json['creditLimit'] ?? json['limit'] ?? json['cupo'] ?? 0).toDouble(),
-        balance: (json['balance'] ?? json['total'] ?? 0).toDouble(),
-        minimum: (json['minimum'] ?? 0).toDouble(),
+      balance: (json['balance'] ?? json['total'] ?? json['amount'] ?? 0).toDouble(),
+      minimum: (json['minimum'] ?? json['amount'] ?? 0).toDouble(),
         paymentTotal:
-            (json['paymentTotal'] ?? json['totalPayment'] ?? json['total'] ?? 0).toDouble(),
+        (json['paymentTotal'] ?? json['totalPayment'] ?? json['total'] ?? json['amount'] ?? 0)
+          .toDouble(),
         cutoffDay: _parseOptionalDay(json['cutoffDay'] ?? json['cutoffDate']),
         paymentDay: _parseOptionalDay(json['paymentDay'] ?? json['paymentDate']),
         type: json['type'] ?? 'credit-card',

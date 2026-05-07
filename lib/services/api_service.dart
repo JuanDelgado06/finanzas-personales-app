@@ -55,12 +55,15 @@ class ApiService {
 
   Future<MonthlyBudget> saveBudget(MonthlyBudget budget) async {
     final headers = await _authHeaders();
+    final payload = budget.toJson();
+    debugPrint('saveBudget payload: ${jsonEncode(payload).substring(0, jsonEncode(payload).length.clamp(0, 2000))}');
     final response = await http.post(
       Uri.parse('$_baseUrl/api/budgets'),
       headers: headers,
-      body: jsonEncode(budget.toJson()),
+      body: jsonEncode(payload),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
+      debugPrint('saveBudget raw response: ${response.body.substring(0, response.body.length.clamp(0, 2000))}');
       final decoded = jsonDecode(response.body);
       final budgetMap = _extractBudgetObject(decoded);
       return MonthlyBudget.fromJson(budgetMap);

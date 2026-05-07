@@ -940,22 +940,15 @@ class _CreditCardRowState extends State<_CreditCardRow> {
     final utilization = widget.item.creditLimit > 0
         ? (widget.item.balance / widget.item.creditLimit * 100).clamp(0, 100)
         : 0;
-
-    // Paleta elegante de colores sofisticados
-    final colors = [
-      const Color(0xFF1F2937), // Gris oscuro
-      const Color(0xFF374151), // Gris medio
-      const Color(0xFF1E3A8A), // Azul oscuro
-      const Color(0xFF1E293B), // Pizarra oscura
-      const Color(0xFF0F172A), // Casi negro azulado
-      const Color(0xFF44403C), // Taupe oscuro
-    ];
-
-    final colorIndex =
-        (widget.item.id.hashCode).abs() % colors.length;
-    final primaryColor = colors[colorIndex];
-    final accentColor = Colors.white.withOpacity(0.95);
-    final secondaryAccent = Colors.white.withOpacity(0.6);
+    final numericId = widget.item.id.replaceAll(RegExp(r'[^0-9]'), '');
+    final last4 = numericId.length >= 4
+        ? numericId.substring(numericId.length - 4)
+        : numericId.padLeft(4, '0');
+    const plateDark = Color(0xFF050607);
+    const plateMid = Color(0xFF121417);
+    const metal = Color(0xFFBAC1CB);
+    const softMetal = Color(0xFF7D8592);
+    const whiteInk = Color(0xFFECEFF3);
 
     return Column(
       children: [
@@ -965,262 +958,254 @@ class _CreditCardRowState extends State<_CreditCardRow> {
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
+              borderRadius: BorderRadius.circular(18),
+              gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  primaryColor,
-                  primaryColor.withOpacity(0.95),
-                ],
+                colors: [plateDark, plateMid, plateDark],
+                stops: [0.0, 0.52, 1.0],
               ),
+              border: Border.all(color: metal.withOpacity(0.32), width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(0.45),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: whiteInk.withOpacity(0.05),
+                  blurRadius: 0,
+                  spreadRadius: 1,
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header: Icon + Name + Delete
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: accentColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: PhosphorIcon(
-                            PhosphorIconsLight.creditCard,
-                            color: accentColor,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Tarjeta de Crédito',
-                              style: TextStyle(
-                                color: secondaryAccent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              hasName ? cardName : 'Nueva Tarjeta',
-                              style: TextStyle(
-                                color: accentColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: widget.onRemove,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: PhosphorIcon(
-                              PhosphorIconsLight.trash,
-                              color: Colors.red.shade300,
-                              size: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  // Middle: Saldo y Cupo
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'SALDO ACTUAL',
-                            style: TextStyle(
-                              color: secondaryAccent,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            formatCurrencyFull(widget.item.balance),
-                            style: TextStyle(
-                              color: accentColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 20,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'CUPO TOTAL',
-                            style: TextStyle(
-                              color: secondaryAccent,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            formatCurrencyFull(widget.item.creditLimit),
-                            style: TextStyle(
-                              color: accentColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 20,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  // Progress bar
-                  Container(
-                    width: double.infinity,
-                    height: 5,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: -40,
+                  top: -30,
+                  child: Container(
+                    width: 180,
+                    height: 180,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(3),
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          metal.withOpacity(0.15),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        height: 5,
-                        width:
-                            MediaQuery.of(context).size.width * (utilization / 100) * 0.65,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withOpacity(0.8),
-                              Colors.white.withOpacity(0.5),
+                  ),
+                ),
+                Positioned(
+                  right: -60,
+                  bottom: -60,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.09),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              gradient: LinearGradient(
+                                colors: [
+                                  metal.withOpacity(0.95),
+                                  const Color(0xFF8D95A2),
+                                ],
+                              ),
+                              border: Border.all(color: Colors.white.withOpacity(0.2)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: widget.onRemove,
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: PhosphorIcon(
+                                  PhosphorIconsLight.trash,
+                                  color: Colors.red.shade200,
+                                  size: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        '37•• •••••• •$last4',
+                        style: const TextStyle(
+                          color: whiteInk,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        hasName ? cardName.toUpperCase() : 'NUEVA TARJETA',
+                        style: const TextStyle(
+                          color: whiteInk,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'SALDO ACTUAL',
+                                style: TextStyle(
+                                  color: softMetal,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                formatCurrencyFull(widget.item.balance),
+                                style: const TextStyle(
+                                  color: whiteInk,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
                             ],
                           ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'CUPO TOTAL',
+                                style: TextStyle(
+                                  color: softMetal,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                formatCurrencyFull(widget.item.creditLimit),
+                                style: const TextStyle(
+                                  color: whiteInk,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(3),
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  // Bottom: Dates & Utilization
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Corte',
-                              style: TextStyle(
-                                color: secondaryAccent,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.6,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: (utilization / 100).toDouble(),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    metal.withOpacity(0.9),
+                                    Colors.white.withOpacity(0.85),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(3),
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
                               widget.item.cutoffDay != null
-                                  ? 'Día ${widget.item.cutoffDay}'
-                                  : '---',
+                                  ? 'CORTE ${widget.item.cutoffDay}'
+                                  : 'CORTE --',
                               style: TextStyle(
-                                color: accentColor,
-                                fontSize: 13,
+                                color: softMetal,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
+                                letterSpacing: 0.9,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Pago',
-                              style: TextStyle(
-                                color: secondaryAccent,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
+                          ),
+                          Expanded(
+                            child: Text(
                               widget.item.paymentDay != null
-                                  ? 'Día ${widget.item.paymentDay}'
-                                  : '---',
+                                  ? 'PAGO ${widget.item.paymentDay}'
+                                  : 'PAGO --',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: accentColor,
-                                fontSize: 13,
+                                color: softMetal,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
+                                letterSpacing: 0.9,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Uso',
+                          ),
+                          Expanded(
+                            child: Text(
+                              'USO ${utilization.toStringAsFixed(0)}%',
+                              textAlign: TextAlign.end,
                               style: TextStyle(
-                                color: secondaryAccent,
-                                fontSize: 9,
+                                color: softMetal,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                letterSpacing: 0.6,
+                                letterSpacing: 0.9,
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${utilization.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: accentColor,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

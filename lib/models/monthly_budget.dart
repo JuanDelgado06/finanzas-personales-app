@@ -104,10 +104,26 @@ class MonthlyBudget {
         'monthName': monthName,
         'assets': assets.map((a) => a.toJson()).toList(),
         'owed': owed.map((a) => a.toJson()).toList(),
-        'liabilities': liabilities.map((l) {
-          if (l is Liability) return l.toJson();
-          return l;
-        }).toList(),
+        'liabilities': [
+          ...liabilities.map((l) {
+            if (l is Liability) return l.toJson();
+            return l;
+          }),
+          ...creditCards.map((c) => {
+            'id': c.id,
+            'name': c.name,
+            'type': 'credit-card',
+            // Compatibilidad con APIs que solo persisten amount en liabilities.
+            'amount': c.paymentTotal,
+            'total': c.paymentTotal,
+            'minimum': c.minimum,
+            'creditLimit': c.creditLimit,
+            'balance': c.balance,
+            'paymentTotal': c.paymentTotal,
+            'cutoffDay': c.cutoffDay,
+            'paymentDay': c.paymentDay,
+          }),
+        ],
         'creditCards': creditCards.map((c) => c.toJson()).toList(),
         'microExpenses': microExpenses.map((m) => m.toJson()).toList(),
         'microExpenseCategories': microExpenseCategories,
