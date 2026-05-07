@@ -60,6 +60,7 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
     AppState state,
     MonthlyBudget budget,
   ) {
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -81,7 +82,8 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               if (budget.monthSlug == null || budget.monthSlug!.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!context.mounted || !messenger.mounted) return;
+                messenger.showSnackBar(
                   const SnackBar(
                     content: Text(
                       'Error: el presupuesto no tiene identificador',
@@ -92,9 +94,9 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
                 return;
               }
               final ok = await state.deleteBudget(budget.monthSlug!);
-              if (!context.mounted) return;
+              if (!context.mounted || !messenger.mounted) return;
               final queued = state.hasPendingSync;
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text(
                     ok
@@ -145,6 +147,7 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
   }
 
   void _applyBudget(AppState state, MonthlyBudget budget) {
+    final messenger = ScaffoldMessenger.of(context);
     state.monthName = budget.monthName;
     state.assets = List.from(budget.assets);
     state.owed = List.from(budget.owed);
@@ -155,7 +158,8 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
       state.microExpenseCategories = List.from(budget.microExpenseCategories);
     }
     state.notifyListeners();
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!context.mounted || !messenger.mounted) return;
+    messenger.showSnackBar(
       const SnackBar(
         content: Text('Presupuesto cargado'),
         backgroundColor: kSuccess,

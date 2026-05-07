@@ -166,10 +166,11 @@ class BudgetScreen extends StatelessWidget {
   }
 
   Future<void> _saveBudget(BuildContext context, AppState state) async {
+    final messenger = ScaffoldMessenger.of(context);
     final ok = await state.saveBudget();
-    if (!context.mounted) return;
+    if (!context.mounted || !messenger.mounted) return;
     final queued = state.hasPendingSync;
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok
@@ -184,6 +185,7 @@ class BudgetScreen extends StatelessWidget {
   }
 
   void _confirmReset(BuildContext context, AppState state) {
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -202,7 +204,8 @@ class BudgetScreen extends StatelessWidget {
             onPressed: () {
               Navigator.pop(context);
               state.resetForm();
-              ScaffoldMessenger.of(context).showSnackBar(
+              if (!context.mounted || !messenger.mounted) return;
+              messenger.showSnackBar(
                 const SnackBar(
                   content: Text('Formulario limpiado para nuevo mes'),
                   backgroundColor: kAccent,
