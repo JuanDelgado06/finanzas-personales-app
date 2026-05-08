@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-const Color kAppBg = Color(0xFF05070D);
-const Color kSurface = Color(0xFF0C1424);
-const Color kSurfaceSoft = Color(0xFF101B30);
-const Color kSurfaceHover = Color(0xFF16233A);
+const Color kAppBg = Color(0xFF080808);
+const Color kSurface = Color(0xFF111111);
+const Color kSurfaceSoft = Color(0xFF181818);
+const Color kSurfaceHover = Color(0xFF202020);
 const Color kLine = Color(0x1AFFFFFF);
 const Color kLineSoft = Color(0x0FFFFFFF);
 const Color kTextMain = Color(0xFFE6EDF7);
 const Color kTextSoft = Color(0xFFA8B5C4);
-const Color kAccent = Color(0xFF4F8CFF);
-const Color kDanger = Color(0xFFFF5F7A);
-const Color kSuccess = Color(0xFF22C55E);
+const Color kAccent = Color(0xFF00D37F);
+const Color kDanger = Color(0xFFFF4D6A);
+const Color kSuccess = Color(0xFF00D37F);
 const Color kWarning = Color(0xFFA78BFA);
 
 ThemeData buildAppTheme() {
