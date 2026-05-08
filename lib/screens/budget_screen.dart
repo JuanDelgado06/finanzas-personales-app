@@ -21,145 +21,201 @@ class BudgetScreen extends StatelessWidget {
         );
     return Scaffold(
       backgroundColor: kAppBg,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _SummaryCard(state: state)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: _MonthInput(state: state),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Section(
-              title: 'Activos',
-              subtitle: 'Ingresa cuentas, efectivo o ahorro disponible.',
-              iconData: PhosphorIconsLight.wallet,
-              iconColor: kAccent,
-              onAdd: state.addAsset,
-              child: Column(
-                children: state.assets
-                    .asMap()
-                    .entries
-                    .map(
-                      (e) => _AssetRow(
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _SummaryCard(state: state)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _MonthInput(state: state),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _Section(
+                  title: 'Activos',
+                  subtitle: 'Ingresa cuentas, efectivo o ahorro disponible.',
+                  iconData: PhosphorIconsLight.wallet,
+                  iconColor: kAccent,
+                  onAdd: state.addAsset,
+                  child: Column(
+                    children: state.assets
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => _AssetRow(
+                            index: e.key,
+                            item: e.value,
+                            availableAmount: availableById[e.value.id] ?? e.value.amount,
+                            onRemove: () => state.removeAsset(e.key),
+                            onChanged: (name, amount) => state.updateAsset(
+                              e.key,
+                              name: name,
+                              amount: amount,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _Section(
+                  title: 'Me Deben',
+                  subtitle: 'Registra dinero pendiente por cobrar.',
+                  iconData: PhosphorIconsLight.bank,
+                  iconColor: const Color(0xFF22C55E),
+                  onAdd: state.addOwed,
+                  child: Column(
+                    children: state.owed
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => _AssetRow(
+                            index: e.key,
+                            item: e.value,
+                            availableAmount: availableById[e.value.id] ?? e.value.amount,
+                            onRemove: () => state.removeOwed(e.key),
+                            onChanged: (name, amount) =>
+                                state.updateOwed(e.key, name: name, amount: amount),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _Section(
+                  title: 'Gastos Fijos',
+                  subtitle: 'Pagos recurrentes como servicios, arriendos, etc.',
+                  iconData: PhosphorIconsLight.receipt,
+                  iconColor: kDanger,
+                  onAddLabel: '+ Agregar',
+                  onAdd: state.addLiability,
+                  child: Column(
+                    children: state.liabilities.asMap().entries.map((e) {
+                      final l = e.value as Liability;
+                      return _LiabilityRow(
                         index: e.key,
-                        item: e.value,
-                        availableAmount: availableById[e.value.id] ?? e.value.amount,
-                        onRemove: () => state.removeAsset(e.key),
-                        onChanged: (name, amount) => state.updateAsset(
-                          e.key,
-                          name: name,
-                          amount: amount,
-                        ),
-                      ),
-                    )
-                    .toList(),
+                        item: l,
+                        onRemove: () => state.removeLiability(e.key),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Section(
-              title: 'Me Deben',
-              subtitle: 'Registra dinero pendiente por cobrar.',
-              iconData: PhosphorIconsLight.bank,
-              iconColor: const Color(0xFF22C55E),
-              onAdd: state.addOwed,
-              child: Column(
-                children: state.owed
-                    .asMap()
-                    .entries
-                    .map(
-                      (e) => _AssetRow(
+              SliverToBoxAdapter(
+                child: _Section(
+                  title: 'Tarjetas de Crédito',
+                  subtitle: 'Créditos activos, cupos y pagos pendientes.',
+                  iconData: PhosphorIconsLight.creditCard,
+                  iconColor: const Color(0xFFF59E0B),
+                  onAddLabel: '+ Nueva Tarjeta',
+                  onAdd: state.addCreditCard,
+                  child: Column(
+                    children: state.creditCards.asMap().entries.map((e) {
+                      final card = e.value;
+                      return _CreditCardRow(
                         index: e.key,
-                        item: e.value,
-                        availableAmount: availableById[e.value.id] ?? e.value.amount,
-                        onRemove: () => state.removeOwed(e.key),
-                        onChanged: (name, amount) =>
-                            state.updateOwed(e.key, name: name, amount: amount),
+                        item: card,
+                        onRemove: () => state.removeCreditCard(e.key),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _saveBudget(context, state),
+                    icon: const PhosphorIcon(PhosphorIconsLight.cloudArrowUp),
+                    label: Text(
+                      hasExistingBudget
+                          ? 'Actualizar presupuesto'
+                          : 'Guardar presupuesto',
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: OutlinedButton.icon(
+                    onPressed: () => _confirmReset(context, state),
+                    icon: const PhosphorIcon(
+                      PhosphorIconsLight.arrowClockwise,
+                      color: kTextSoft,
+                    ),
+                    label: const Text(
+                      'Nuevo mes',
+                      style: TextStyle(color: kTextSoft),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: kLine),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    )
-                    .toList(),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Section(
-              title: 'Gastos Fijos',
-              subtitle: 'Pagos recurrentes como servicios, arriendos, etc.',
-              iconData: PhosphorIconsLight.receipt,
-              iconColor: kDanger,
-              onAddLabel: '+ Agregar',
-              onAdd: state.addLiability,
-              child: Column(
-                children: state.liabilities.asMap().entries.map((e) {
-                  final l = e.value as Liability;
-                  return _LiabilityRow(
-                    index: e.key,
-                    item: l,
-                    onRemove: () => state.removeLiability(e.key),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Section(
-              title: 'Tarjetas de Crédito',
-              subtitle: 'Créditos activos, cupos y pagos pendientes.',
-              iconData: PhosphorIconsLight.creditCard,
-              iconColor: const Color(0xFFF59E0B),
-              onAddLabel: '+ Nueva Tarjeta',
-              onAdd: state.addCreditCard,
-              child: Column(
-                children: state.creditCards.asMap().entries.map((e) {
-                  final card = e.value;
-                  return _CreditCardRow(
-                    index: e.key,
-                    item: card,
-                    onRemove: () => state.removeCreditCard(e.key),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: ElevatedButton.icon(
-                onPressed: () => _saveBudget(context, state),
-                icon: const PhosphorIcon(PhosphorIconsLight.cloudArrowUp),
-                label: Text(
-                  hasExistingBudget
-                      ? 'Actualizar presupuesto'
-                      : 'Guardar presupuesto',
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SliverToBoxAdapter(child: SizedBox(height: 96)),
+            ],
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: OutlinedButton.icon(
-                onPressed: () => _confirmReset(context, state),
-                icon: const PhosphorIcon(
-                  PhosphorIconsLight.arrowClockwise,
-                  color: kTextSoft,
-                ),
-                label: const Text(
-                  'Nuevo mes',
-                  style: TextStyle(color: kTextSoft),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: kLine),
-                  shape: RoundedRectangleBorder(
+          if (state.hasUnsavedBudgetChanges)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: SafeArea(
+                top: false,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(14),
+                    onTap: () => _saveBudget(context, state),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xEE10233F),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: kAccent.withOpacity(0.45)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.35),
+                            blurRadius: 14,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        children: [
+                          PhosphorIcon(
+                            PhosphorIconsLight.floppyDisk,
+                            color: kAccent,
+                            size: 17,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Cambios sin guardar · Toca para actualizar',
+                              style: TextStyle(color: kTextMain, fontSize: 12.5),
+                            ),
+                          ),
+                          PhosphorIcon(
+                            PhosphorIconsLight.caretRight,
+                            color: kAccent,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
@@ -567,7 +623,7 @@ class _MonthInputState extends State<_MonthInput> {
             focusNode: _focusNode,
             onChanged: (v) {
               widget.state.monthName = v;
-              widget.state.notifyListeners();
+                widget.state.markBudgetDirty();
             },
             style: const TextStyle(
               color: kTextMain,
@@ -1147,7 +1203,7 @@ class _LiabilityRow extends StatelessWidget {
               hint: 'Gasto fijo',
               onChanged: (v) {
                 item.name = v;
-                state.notifyListeners();
+                state.markBudgetDirty();
               },
             ),
           ),
@@ -1158,7 +1214,7 @@ class _LiabilityRow extends StatelessWidget {
               initial: item.amount,
               onChanged: (v) {
                 item.amount = v;
-                state.notifyListeners();
+                state.markBudgetDirty();
               },
             ),
           ),
@@ -1187,6 +1243,8 @@ class _CreditCardRow extends StatefulWidget {
 
 class _CreditCardRowState extends State<_CreditCardRow> {
   late bool _expanded;
+  late final TextEditingController _abonoCtrl;
+  String _abonoAssetName = '';
 
   double _derivedBalance() {
     final value = widget.item.creditLimit - widget.item.paymentTotal;
@@ -1201,7 +1259,14 @@ class _CreditCardRowState extends State<_CreditCardRow> {
   void initState() {
     super.initState();
     _expanded = false;
+    _abonoCtrl = TextEditingController();
     _syncDerivedBalance();
+  }
+
+  @override
+  void dispose() {
+    _abonoCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -1210,9 +1275,53 @@ class _CreditCardRowState extends State<_CreditCardRow> {
     _syncDerivedBalance();
   }
 
+  void _applyPayment(AppState state) {
+    final messenger = ScaffoldMessenger.of(context);
+    final amount = double.tryParse(_abonoCtrl.text) ?? 0;
+
+    if (_abonoAssetName.trim().isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona un activo para pagar la tarjeta'),
+          backgroundColor: kDanger,
+        ),
+      );
+      return;
+    }
+
+    final error = state.applyCreditCardPayment(
+      cardId: widget.item.id,
+      assetName: _abonoAssetName,
+      amount: amount,
+    );
+
+    if (error != null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: kDanger),
+      );
+      return;
+    }
+
+    _abonoCtrl.clear();
+    HapticFeedback.lightImpact();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Abono aplicado a la tarjeta'),
+        backgroundColor: kSuccess,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.read<AppState>();
+    final assetNames = state.assetNames;
+    if (assetNames.isEmpty) {
+      _abonoAssetName = '';
+    } else if (!assetNames.contains(_abonoAssetName)) {
+      _abonoAssetName = assetNames.first;
+    }
+
     final cardName = widget.item.name.trim();
     final hasName = cardName.isNotEmpty;
     final currentBalance = _derivedBalance();
@@ -1359,33 +1468,6 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'VALID\nTHRU',
-                                style: TextStyle(
-                                  color: Color(0xFF7D8592),
-                                  fontSize: 7,
-                                  height: 1.3,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                widget.item.paymentDay != null
-                                    ? '${widget.item.cutoffDay ?? '--'}/${widget.item.paymentDay}'
-                                    : '--/--',
-                                style: const TextStyle(
-                                  color: Color(0xFFECEFF3),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 24),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
                               Text(
                                 'CUPO',
                                 style: TextStyle(
@@ -1500,7 +1582,7 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                             hint: 'Ej: Visa, Mastercard, Amex',
                             onChanged: (v) {
                               widget.item.name = v;
-                              state.notifyListeners();
+                              state.markBudgetDirty();
                             },
                           ),
                         ],
@@ -1527,7 +1609,7 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                             onChanged: (v) {
                               widget.item.creditLimit = v;
                               _syncDerivedBalance();
-                              state.notifyListeners();
+                              state.markBudgetDirty();
                             },
                           ),
                         ],
@@ -1586,7 +1668,7 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                             compact: true,
                             onChanged: (v) {
                               widget.item.minimum = v;
-                              state.notifyListeners();
+                              state.markBudgetDirty();
                             },
                           ),
                         ],
@@ -1608,7 +1690,7 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                             onChanged: (v) {
                               widget.item.paymentTotal = v;
                               _syncDerivedBalance();
-                              state.notifyListeners();
+                              state.markBudgetDirty();
                             },
                           ),
                         ],
@@ -1617,48 +1699,103 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                // Fechas
+                // Abono desde activo
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Abono a tarjeta desde activo',
+                    style: TextStyle(
+                      color: kTextSoft,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Día de corte',
-                            style: TextStyle(color: kTextSoft, fontSize: 11),
+                      flex: 5,
+                      child: DropdownButtonFormField<String>(
+                        value: _abonoAssetName.isEmpty ? null : _abonoAssetName,
+                        items: assetNames
+                            .map(
+                              (name) => DropdownMenuItem<String>(
+                                value: name,
+                                child: Text(
+                                  name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: kTextMain,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: assetNames.isEmpty
+                            ? null
+                            : (v) {
+                                setState(() => _abonoAssetName = v ?? '');
+                              },
+                        decoration: InputDecoration(
+                          hintText: assetNames.isEmpty
+                              ? 'No hay activos disponibles'
+                              : 'Activo de pago',
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
                           ),
-                          const SizedBox(height: 4),
-                          _DayInput(
-                            initial: widget.item.cutoffDay,
-                            hint: '1-31',
-                            onChanged: (v) {
-                              widget.item.cutoffDay = v;
-                              state.notifyListeners();
-                            },
-                          ),
-                        ],
+                        ),
+                        dropdownColor: kSurface,
+                        iconEnabledColor: kTextSoft,
+                        style: const TextStyle(color: kTextMain),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Día de pago',
-                            style: TextStyle(color: kTextSoft, fontSize: 11),
-                          ),
-                          const SizedBox(height: 4),
-                          _DayInput(
-                            initial: widget.item.paymentDay,
-                            hint: '1-31',
-                            onChanged: (v) {
-                              widget.item.paymentDay = v;
-                              state.notifyListeners();
-                            },
+                      flex: 3,
+                      child: TextField(
+                        controller: _abonoCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d*'),
                           ),
                         ],
+                        style: const TextStyle(color: kTextMain, fontSize: 13),
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          hintText: '0',
+                          hintStyle: const TextStyle(color: kTextSoft),
+                          prefixText: '\$ ',
+                          prefixStyle: const TextStyle(
+                            color: kTextSoft,
+                            fontSize: 13,
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 40,
+                      child: ElevatedButton(
+                        onPressed: assetNames.isEmpty
+                            ? null
+                            : () => _applyPayment(state),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(0, 40),
+                        ),
+                        child: const Text('Abonar'),
                       ),
                     ),
                   ],

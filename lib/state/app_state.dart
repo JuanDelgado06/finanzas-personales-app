@@ -21,6 +21,7 @@ class AppState extends ChangeNotifier {
   static const String _pendingOpsCacheKey = 'pending_budget_ops_v1';
   bool _syncingPendingOps = false;
   int _pendingOpsCount = 0;
+  bool _hasUnsavedBudgetChanges = false;
 
   String monthName = '';
   List<BudgetItem> assets = [];
@@ -46,6 +47,7 @@ class AppState extends ChangeNotifier {
   bool get isSyncingPendingOps => _syncingPendingOps;
   bool get hasPendingSync => _pendingOpsCount > 0;
   int get pendingOpsCount => _pendingOpsCount;
+  bool get hasUnsavedBudgetChanges => _hasUnsavedBudgetChanges;
 
   // Auto-save state
   bool isSaving = false;
@@ -66,7 +68,7 @@ class AppState extends ChangeNotifier {
 
   // ── Calculated totals ──────────────────────────────────────────────────────
   double get _baseAssets =>
-      [...assets, ...owed].fold(0, (sum, i) => sum + i.amount);
+      assets.fold(0, (sum, i) => sum + i.amount);
 
   String _normalizePaymentMethod(String value) => value.trim().toLowerCase();
 
@@ -97,7 +99,7 @@ class AppState extends ChangeNotifier {
     final remainingById = <String, double>{};
     final itemsByMethod = <String, List<BudgetItem>>{};
 
-    for (final item in [...assets, ...owed]) {
+    for (final item in assets) {
       remainingById[item.id] = item.amount;
       final key = _normalizePaymentMethod(item.name);
       if (key.isEmpty) continue;
@@ -130,13 +132,16 @@ class AppState extends ChangeNotifier {
     return covered > 0 ? covered : 0;
   }
 
+  double get _totalOwed => owed.fold(0.0, (sum, item) => sum + item.amount);
+
   double get _uncoveredMicroExpenses {
     final remaining = totalMicroExpenses - _microExpensesCoveredByAssets;
     return remaining > 0 ? remaining : 0;
   }
 
-  double get totalAssets =>
-      availableAmountByItemId.values.fold(0.0, (sum, value) => sum + value);
+    double get totalAssets =>
+      availableAmountByItemId.values.fold(0.0, (sum, value) => sum + value) +
+      _totalOwed;
 
   double get totalMicroExpenses =>
       microExpenses.fold(0, (sum, m) => sum + m.amount);
@@ -159,7 +164,7 @@ class AppState extends ChangeNotifier {
   double get savingsGoal => totalAssets - partialLiabilities;
 
   List<String> get assetNames =>
-      [...assets, ...owed].map((a) => a.name.trim()).where((n) => n.isNotEmpty).toList();
+      assets.map((a) => a.name.trim()).where((n) => n.isNotEmpty).toList();
 
   List<String> get paymentMethodNames {
     final names = <String>[];
@@ -177,6 +182,7 @@ class AppState extends ChangeNotifier {
   // ── Form actions ───────────────────────────────────────────────────────────
   void _resetForm() {
     monthName = '';
+    _hasUnsavedBudgetChanges = false;
     microExpenseCategories = List.from(kDefaultCategories);
     assets = [
       BudgetItem(id: '1', name: 'Nequi', amount: 0),
@@ -209,35 +215,45 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void markBudgetDirty({bool notify = true}) {
+    _hasUnsavedBudgetChanges = true;
+    if (notify) notifyListeners();
+  }
+
+  void clearBudgetDirty({bool notify = true}) {
+    _hasUnsavedBudgetChanges = false;
+    if (notify) notifyListeners();
+  }
+
   void updateAsset(int index, {String? name, double? amount}) {
     if (name != null) assets[index].name = name;
     if (amount != null) assets[index].amount = amount;
-    notifyListeners();
+    markBudgetDirty();
   }
 
   void addAsset() {
     assets.add(BudgetItem(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', amount: 0));
-    notifyListeners();
+    markBudgetDirty();
   }
 
-  void removeAsset(int index) { assets.removeAt(index); notifyListeners(); }
+  void removeAsset(int index) { assets.removeAt(index); markBudgetDirty(); }
 
   void updateOwed(int index, {String? name, double? amount}) {
     if (name != null) owed[index].name = name;
     if (amount != null) owed[index].amount = amount;
-    notifyListeners();
+    markBudgetDirty();
   }
 
   void addOwed() {
     owed.add(BudgetItem(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', amount: 0));
-    notifyListeners();
+    markBudgetDirty();
   }
 
-  void removeOwed(int index) { owed.removeAt(index); notifyListeners(); }
+  void removeOwed(int index) { owed.removeAt(index); markBudgetDirty(); }
 
   void addLiability() {
     liabilities.add(Liability(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', amount: 0));
-    notifyListeners();
+    markBudgetDirty();
   }
 
   void addCreditCard() {
@@ -251,15 +267,49 @@ class AppState extends ChangeNotifier {
         paymentTotal: 0,
       ),
     );
-    notifyListeners();
+    markBudgetDirty();
   }
 
   void removeCreditCard(int index) {
     creditCards.removeAt(index);
-    notifyListeners();
+    markBudgetDirty();
   }
 
-  void removeLiability(int index) { liabilities.removeAt(index); notifyListeners(); }
+  String? applyCreditCardPayment({
+    required String cardId,
+    required String assetName,
+    required double amount,
+  }) {
+    if (amount <= 0) return 'Ingresa un monto valido';
+
+    final cardIndex = creditCards.indexWhere((c) => c.id == cardId);
+    if (cardIndex < 0) return 'No se encontro la tarjeta';
+
+    final assetIndex = assets.indexWhere(
+      (a) => _normalizePaymentMethod(a.name) == _normalizePaymentMethod(assetName),
+    );
+    if (assetIndex < 0) return 'No se encontro el activo de pago';
+
+    final card = creditCards[cardIndex];
+    if (card.paymentTotal <= 0) return 'La tarjeta no tiene saldo pendiente';
+    if (amount > card.paymentTotal) return 'El abono supera el saldo pendiente';
+
+    final asset = assets[assetIndex];
+    if (amount > asset.amount) return 'Fondos insuficientes en $assetName';
+
+    asset.amount -= amount;
+    card.paymentTotal -= amount;
+    if (card.paymentTotal < 0) card.paymentTotal = 0;
+
+    final nextBalance = card.creditLimit - card.paymentTotal;
+    card.balance = nextBalance > 0 ? nextBalance : 0;
+
+    markBudgetDirty();
+    _scheduleSave();
+    return null;
+  }
+
+  void removeLiability(int index) { liabilities.removeAt(index); markBudgetDirty(); }
 
   void addMicroExpense() {
     final defaultPayment = assetNames.isNotEmpty ? assetNames.first : '';
@@ -425,6 +475,7 @@ class AppState extends ChangeNotifier {
     if (budget.microExpenseCategories.isNotEmpty) {
       microExpenseCategories = List.from(budget.microExpenseCategories);
     }
+    _hasUnsavedBudgetChanges = false;
     notifyListeners();
   }
 
@@ -480,6 +531,7 @@ class AppState extends ChangeNotifier {
       await apiService.saveBudget(budget);
       await _syncPendingOperations(refreshBudgets: false);
       await loadBudgets();
+      clearBudgetDirty(notify: false);
       return true;
     } catch (e) {
       debugPrint('Error saving budget: $e');
@@ -487,6 +539,7 @@ class AppState extends ChangeNotifier {
       await _enqueuePendingSave(budget);
       _upsertLocalBudget(budget);
       await _writeBudgetsCache(savedBudgets);
+      clearBudgetDirty(notify: false);
       notifyListeners();
       return true;
     }
