@@ -43,6 +43,7 @@ class AppState extends ChangeNotifier {
   // Saved budgets
   List<MonthlyBudget> savedBudgets = [];
   bool loadingBudgets = false;
+  bool isLoadingMonth = false;  // Indicador para el cargamento inicial del mes
 
   bool get isSyncingPendingOps => _syncingPendingOps;
   bool get hasPendingSync => _pendingOpsCount > 0;
@@ -501,12 +502,19 @@ class AppState extends ChangeNotifier {
 
   /// Carga los presupuestos y aplica automáticamente el más reciente.
   Future<void> loadAndAutoApply() async {
-    await loadBudgets();
-    if (savedBudgets.isEmpty) return;
-    // Ordenar por createdAt descendente y tomar el primero
-    final sorted = List<MonthlyBudget>.from(savedBudgets)
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    applyBudget(sorted.first);
+    isLoadingMonth = true;
+    notifyListeners();
+    try {
+      await loadBudgets();
+      if (savedBudgets.isEmpty) return;
+      // Ordenar por createdAt descendente y tomar el primero
+      final sorted = List<MonthlyBudget>.from(savedBudgets)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      applyBudget(sorted.first);
+    } finally {
+      isLoadingMonth = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> saveBudget() async {

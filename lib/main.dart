@@ -150,6 +150,8 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isLoadingMonth = context.watch<AppState>().isLoadingMonth;
+    
     return Scaffold(
       backgroundColor: kAppBg,
       appBar: AppBar(
@@ -173,7 +175,11 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-      body: _screens[_currentIndex],
+      body: isLoadingMonth
+          ? const Center(
+              child: CircularProgressIndicator(color: kAccent),
+            )
+          : _screens[_currentIndex],
       bottomNavigationBar: _PillNavBar(
         currentIndex: _currentIndex,
         items: _navItems,
