@@ -24,6 +24,7 @@ class AppState extends ChangeNotifier {
   bool _hasUnsavedBudgetChanges = false;
 
   String monthName = '';
+  DateTime selectedBudgetDate = DateTime.now();
   List<BudgetItem> assets = [];
   List<BudgetItem> owed = [];
   List<dynamic> liabilities = []; // only Liability
@@ -163,6 +164,25 @@ class AppState extends ChangeNotifier {
   double get netWorth => totalAssets - totalLiabilities;
   double get partialNetWorth => totalAssets - partialLiabilities;
   double get savingsGoal => totalAssets - partialLiabilities;
+  double get budgetUsagePercent {
+    if (totalAssets <= 0) return 0;
+    final percent = (totalLiabilities / totalAssets) * 100;
+    if (!percent.isFinite) return 0;
+    return percent.clamp(0, 999).toDouble();
+  }
+
+  MapEntry<String, double>? get topMicroExpenseCategory {
+    if (microExpenses.isEmpty) return null;
+    final byCategory = <String, double>{};
+    for (final m in microExpenses) {
+      final key = m.category.trim().isEmpty ? 'General' : m.category.trim();
+      byCategory[key] = (byCategory[key] ?? 0) + m.amount;
+    }
+
+    final sorted = byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.first;
+  }
 
   List<String> get assetNames =>
       assets.map((a) => a.name.trim()).where((n) => n.isNotEmpty).toList();
@@ -182,7 +202,8 @@ class AppState extends ChangeNotifier {
 
   // ── Form actions ───────────────────────────────────────────────────────────
   void _resetForm() {
-    monthName = '';
+    selectedBudgetDate = DateTime.now();
+    monthName = _currentMonthName;
     _hasUnsavedBudgetChanges = false;
     microExpenseCategories = List.from(kDefaultCategories);
     assets = [
@@ -214,6 +235,91 @@ class AppState extends ChangeNotifier {
   void resetForm() {
     _resetForm();
     notifyListeners();
+  }
+
+  String formatMonthName(DateTime date) {
+    final raw = _monthFormatter.format(DateTime(date.year, date.month));
+    return raw[0].toUpperCase() + raw.substring(1);
+  }
+
+  void setMonthFromDate(DateTime date) {
+    selectedBudgetDate = date;
+    monthName = formatMonthName(date);
+    markBudgetDirty();
+  }
+
+  String get selectedDayLabel {
+    try {
+      return DateFormat('d', 'es_CO').format(selectedBudgetDate);
+    } catch (_) {
+      return selectedBudgetDate.day.toString();
+    }
+  }
+
+  void ensureCurrentMonthLoaded({bool notify = true}) {
+    if (monthName.trim().isNotEmpty) return;
+    selectedBudgetDate = DateTime.now();
+    monthName = _currentMonthName;
+    if (notify) notifyListeners();
+  }
+
+  Future<bool> duplicateFromLatestBudget({String? targetMonthName}) async {
+    final target = (targetMonthName ?? monthName).trim();
+
+    if (savedBudgets.isEmpty) {
+      await loadBudgets();
+    }
+    if (savedBudgets.isEmpty) return false;
+
+    final targetKey = target.toLowerCase();
+    final sorted = List<MonthlyBudget>.from(savedBudgets)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    MonthlyBudget? source;
+    for (final budget in sorted) {
+      if (budget.monthName.trim().toLowerCase() != targetKey) {
+        source = budget;
+        break;
+      }
+    }
+
+    if (source == null) return false;
+
+    monthName = target.isEmpty ? _currentMonthName : target;
+    assets = source.assets.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+    owed = source.owed.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+    final clonedLiabilities = <dynamic>[];
+    for (final l in source.liabilities) {
+      if (l is Liability) {
+        clonedLiabilities.add(Liability.fromJson(l.toJson()));
+        continue;
+      }
+      if (l is Map) {
+        final raw = Map<String, dynamic>.from(l);
+        if ((raw['type'] ?? '').toString() == 'credit-card') {
+          continue;
+        }
+        try {
+          clonedLiabilities.add(Liability.fromJson(raw));
+        } catch (_) {
+          // Ignorar liabilities invalidas heredadas de datos antiguos.
+        }
+      }
+    }
+    liabilities = clonedLiabilities;
+    creditCards = source.creditCards
+        .map((c) => CreditCard.fromJson(c.toJson()))
+        .toList();
+    microExpenses = source.microExpenses
+        .map((m) => MicroExpense.fromJson(m.toJson()))
+        .toList();
+    microExpenseCategories = source.microExpenseCategories.isNotEmpty
+        ? List<String>.from(source.microExpenseCategories)
+        : List.from(kDefaultCategories);
+
+    _hasUnsavedBudgetChanges = true;
+    notifyListeners();
+    return true;
   }
 
   void markBudgetDirty({bool notify = true}) {
@@ -397,15 +503,30 @@ class AppState extends ChangeNotifier {
 
   String get _currentMonthName {
     final now = DateTime.now();
-    final raw = _monthFormatter.format(now);
-    return raw[0].toUpperCase() + raw.substring(1);
+    try {
+      final raw = _monthFormatter.format(now);
+      return raw[0].toUpperCase() + raw.substring(1);
+    } catch (_) {
+      const months = [
+        'Enero',
+        'Febrero',
+        'Marzo',
+        'Abril',
+        'Mayo',
+        'Junio',
+        'Julio',
+        'Agosto',
+        'Septiembre',
+        'Octubre',
+        'Noviembre',
+        'Diciembre',
+      ];
+      return '${months[now.month - 1]} ${now.year}';
+    }
   }
 
   void _ensureMonthName() {
-    if (monthName.trim().isEmpty) {
-      monthName = _currentMonthName;
-      notifyListeners();
-    }
+    ensureCurrentMonthLoaded();
   }
 
   void _scheduleSave() {
@@ -467,6 +588,7 @@ class AppState extends ChangeNotifier {
 
   // ── Apply a saved budget into the active form ─────────────────────────────
   void applyBudget(MonthlyBudget budget) {
+    selectedBudgetDate = DateTime.now();
     monthName = budget.monthName;
     assets = List.from(budget.assets);
     owed = List.from(budget.owed);
@@ -477,6 +599,80 @@ class AppState extends ChangeNotifier {
       microExpenseCategories = List.from(budget.microExpenseCategories);
     }
     _hasUnsavedBudgetChanges = false;
+    notifyListeners();
+  }
+
+  void duplicateBudgetToCurrentMonth(
+    MonthlyBudget budget, {
+    String? targetMonthName,
+  }) {
+    final target = (targetMonthName ?? _currentMonthName).trim();
+    selectedBudgetDate = DateTime.now();
+    monthName = target.isEmpty ? _currentMonthName : target;
+    assets = budget.assets.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+    owed = budget.owed.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+    final clonedLiabilities = <dynamic>[];
+    for (final l in budget.liabilities) {
+      if (l is Liability) {
+        clonedLiabilities.add(Liability.fromJson(l.toJson()));
+        continue;
+      }
+      if (l is Map) {
+        final raw = Map<String, dynamic>.from(l);
+        if ((raw['type'] ?? '').toString() == 'credit-card') {
+          continue;
+        }
+        try {
+          clonedLiabilities.add(Liability.fromJson(raw));
+        } catch (_) {
+          // Ignorar liabilities invalidas heredadas de datos antiguos.
+        }
+      }
+    }
+    liabilities = clonedLiabilities;
+    final clonedCards = <CreditCard>[];
+    for (final c in budget.creditCards) {
+      try {
+        clonedCards.add(CreditCard.fromJson(c.toJson()));
+      } catch (_) {
+        clonedCards.add(
+          CreditCard(
+            id: c.id,
+            name: c.name,
+            creditLimit: c.creditLimit,
+            balance: c.balance,
+            minimum: c.minimum,
+            paymentTotal: c.paymentTotal,
+            cutoffDay: c.cutoffDay,
+            paymentDay: c.paymentDay,
+            type: c.type,
+          ),
+        );
+      }
+    }
+    creditCards = clonedCards;
+
+    final clonedMicroExpenses = <MicroExpense>[];
+    for (final m in budget.microExpenses) {
+      try {
+        clonedMicroExpenses.add(MicroExpense.fromJson(m.toJson()));
+      } catch (_) {
+        clonedMicroExpenses.add(
+          MicroExpense(
+            id: m.id,
+            amount: m.amount,
+            category: m.category,
+            paymentMethod: m.paymentMethod,
+          ),
+        );
+      }
+    }
+    microExpenses = clonedMicroExpenses;
+    microExpenseCategories = budget.microExpenseCategories.isNotEmpty
+        ? List<String>.from(budget.microExpenseCategories)
+        : List.from(kDefaultCategories);
+
+    _hasUnsavedBudgetChanges = true;
     notifyListeners();
   }
 

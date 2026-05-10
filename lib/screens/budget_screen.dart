@@ -503,9 +503,26 @@ class _MonthInputState extends State<_MonthInput> {
   late final TextEditingController _ctrl;
   late final FocusNode _focusNode;
 
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(now.year, now.month),
+      firstDate: DateTime(now.year - 5, 1),
+      lastDate: DateTime(now.year + 5, 12),
+      helpText: 'Selecciona el mes',
+      cancelText: 'Cancelar',
+      confirmText: 'Elegir',
+      initialDatePickerMode: DatePickerMode.year,
+    );
+    if (picked == null) return;
+    widget.state.setMonthFromDate(picked);
+  }
+
   @override
   void initState() {
     super.initState();
+    widget.state.ensureCurrentMonthLoaded();
     _ctrl = TextEditingController(text: widget.state.monthName);
     _focusNode = FocusNode()..addListener(() => setState(() {}));
     _ctrl.addListener(() => setState(() {}));
@@ -595,9 +612,7 @@ class _MonthInputState extends State<_MonthInput> {
               if (hasText)
                 GestureDetector(
                   onTap: () {
-                    _ctrl.clear();
-                    widget.state.monthName = '';
-                    widget.state.notifyListeners();
+                    widget.state.setMonthFromDate(DateTime.now());
                   },
                   child: Container(
                     width: 26,
@@ -644,6 +659,32 @@ class _MonthInputState extends State<_MonthInput> {
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Dia seleccionado: ${widget.state.selectedDayLabel}',
+            style: const TextStyle(
+              color: kTextSoft,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _pickMonth,
+              icon: const PhosphorIcon(PhosphorIconsLight.calendarDots, size: 15),
+              label: const Text('Elegir mes'),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: kLine),
+                foregroundColor: kTextSoft,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
             ),
           ),
         ],

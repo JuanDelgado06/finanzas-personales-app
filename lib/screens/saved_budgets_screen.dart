@@ -46,6 +46,11 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
                       state,
                       state.savedBudgets[index],
                     ),
+                    onDuplicate: () => _confirmDuplicate(
+                      context,
+                      state,
+                      state.savedBudgets[index],
+                    ),
                     onLoad: () =>
                         _loadBudget(context, state, state.savedBudgets[index]),
                   );
@@ -116,6 +121,40 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
     );
   }
 
+  void _confirmDuplicate(
+    BuildContext context,
+    AppState state,
+    MonthlyBudget budget,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text(
+          'Duplicar presupuesto',
+          style: TextStyle(color: kTextMain),
+        ),
+        content: Text(
+          '¿Duplicar "${budget.monthName}" al periodo actual?',
+          style: const TextStyle(color: kTextSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: kTextSoft)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _duplicateBudget(context, state, budget);
+            },
+            child: const Text('Duplicar', style: TextStyle(color: kAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _loadBudget(BuildContext context, AppState state, MonthlyBudget budget) {
     showDialog(
       context: context,
@@ -148,21 +187,39 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
 
   void _applyBudget(AppState state, MonthlyBudget budget) {
     final messenger = ScaffoldMessenger.of(context);
-    state.monthName = budget.monthName;
-    state.assets = List.from(budget.assets);
-    state.owed = List.from(budget.owed);
-    state.liabilities = List.from(budget.liabilities);
-    state.creditCards = List.from(budget.creditCards);
-    state.microExpenses = List.from(budget.microExpenses);
-    if (budget.microExpenseCategories.isNotEmpty) {
-      state.microExpenseCategories = List.from(budget.microExpenseCategories);
-    }
-    state.notifyListeners();
+    state.applyBudget(budget);
     if (!context.mounted || !messenger.mounted) return;
     messenger.showSnackBar(
       const SnackBar(
         content: Text('Presupuesto cargado'),
         backgroundColor: kSuccess,
+      ),
+    );
+  }
+
+  void _duplicateBudget(
+    BuildContext context,
+    AppState state,
+    MonthlyBudget budget,
+  ) {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      state.duplicateBudgetToCurrentMonth(budget);
+    } catch (_) {
+      if (!context.mounted || !messenger.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo duplicar este presupuesto'),
+          backgroundColor: kDanger,
+        ),
+      );
+      return;
+    }
+    if (!context.mounted || !messenger.mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Presupuesto duplicado. Revisa la pestaña Presupuesto'),
+        backgroundColor: kAccent,
       ),
     );
   }
@@ -202,10 +259,12 @@ class _EmptyState extends StatelessWidget {
 class _BudgetCard extends StatelessWidget {
   final MonthlyBudget budget;
   final VoidCallback onDelete;
+  final VoidCallback onDuplicate;
   final VoidCallback onLoad;
   const _BudgetCard({
     required this.budget,
     required this.onDelete,
+    required this.onDuplicate,
     required this.onLoad,
   });
 
@@ -272,6 +331,27 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onDuplicate,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: kAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Center(
+                      child: PhosphorIcon(
+                        PhosphorIconsLight.copy,
+                        color: kAccent,
+                        size: 17,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: onDelete,
                   child: Container(
                     width: 32,

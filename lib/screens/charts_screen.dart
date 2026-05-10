@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../state/app_state.dart';
-import '../models/budget_item.dart';
 import '../theme/app_theme.dart';
 
 class ChartsScreen extends StatelessWidget {
@@ -28,6 +27,8 @@ class ChartsScreen extends StatelessWidget {
         children: [
           // Balance card
           _BalanceCard(state: state),
+          const SizedBox(height: 16),
+          _KpiHighlightsCard(state: state),
           const SizedBox(height: 16),
           // Insights card
           if (sorted.isNotEmpty) ...[
@@ -145,6 +146,90 @@ class _BalRow {
   final Color color;
   final bool bold;
   const _BalRow(this.label, this.value, this.color, {this.bold = false});
+}
+
+class _KpiHighlightsCard extends StatelessWidget {
+  final AppState state;
+  const _KpiHighlightsCard({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = state.budgetUsagePercent;
+    final usageColor = usage >= 90
+        ? kDanger
+        : usage >= 70
+        ? kWarning
+        : kSuccess;
+    final topCategory = state.topMicroExpenseCategory;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: cardDecoration(borderColor: kLineSoft),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              PhosphorIcon(PhosphorIconsLight.gauge, color: kAccent, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Indicadores clave',
+                style: TextStyle(
+                  color: kTextMain,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _KpiRow(
+            label: 'Uso del presupuesto',
+            value: '${usage.toStringAsFixed(0)}%',
+            valueColor: usageColor,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+
+  const _KpiRow({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: kTextSoft, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Chart section wrapper ─────────────────────────────────────────────────────
