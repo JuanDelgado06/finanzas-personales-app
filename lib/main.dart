@@ -14,10 +14,13 @@ import 'screens/micro_expenses_screen.dart';
 import 'screens/charts_screen.dart';
 import 'screens/saved_budgets_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'services/reminder_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await ReminderNotificationService.instance.initialize();
+  await ReminderNotificationService.instance.ensureDefaultDailyReminder();
   runApp(const FinanzasApp());
 }
 

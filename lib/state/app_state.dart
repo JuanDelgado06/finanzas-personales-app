@@ -136,8 +136,18 @@ class AppState extends ChangeNotifier {
 
   double get _totalOwed => owed.fold(0.0, (sum, item) => sum + item.amount);
 
+  double get _microExpensesCoveredByCreditCards {
+    double total = 0;
+    for (final expense in microExpenses) {
+      if (_findCreditCardByPaymentMethod(expense.paymentMethod) != null) {
+        total += expense.amount;
+      }
+    }
+    return total;
+  }
+
   double get _uncoveredMicroExpenses {
-    final remaining = totalMicroExpenses - _microExpensesCoveredByAssets;
+    final remaining = totalMicroExpenses - _microExpensesCoveredByAssets - _microExpensesCoveredByCreditCards;
     return remaining > 0 ? remaining : 0;
   }
 
