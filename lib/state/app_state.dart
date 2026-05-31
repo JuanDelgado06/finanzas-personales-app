@@ -591,9 +591,13 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void removeCategory(String name) {
-    microExpenseCategories.remove(name);
-    notifyListeners();
+  bool removeCategory(String name) {
+    if (microExpenseCategories.length <= 1) return false;
+    final removed = microExpenseCategories.remove(name);
+    if (removed) {
+      notifyListeners();
+    }
+    return removed;
   }
 
   // ── Apply a saved budget into the active form ─────────────────────────────

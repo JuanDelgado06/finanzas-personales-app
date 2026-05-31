@@ -51,6 +51,15 @@ class MicroExpensesScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: kAppBg,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          _showAddExpenseSheet(context, state);
+        },
+        backgroundColor: kAccent,
+        foregroundColor: Colors.white,
+        child: const PhosphorIcon(PhosphorIconsLight.plus, size: 22),
+      ),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _MiniBalanceCard(state: state)),
@@ -64,27 +73,8 @@ class MicroExpensesScreen extends StatelessWidget {
             SliverToBoxAdapter(child: _EmptyMicroState(state: state))
           else
             _GroupedExpenseList(state: state),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _showAddExpenseSheet(context, state);
-                },
-                icon: const PhosphorIcon(PhosphorIconsLight.plus, size: 18),
-                label: const Text('Nuevo gasto'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ),
-          ),
           SliverToBoxAdapter(child: _SaveStatusBar(state: state)),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          const SliverToBoxAdapter(child: SizedBox(height: 104)),
         ],
       ),
     );
@@ -1259,7 +1249,6 @@ class _CategoriesSheet extends StatelessWidget {
                   vertical: 8,
                 ),
                 children: state.microExpenseCategories.map((cat) {
-                  final isDefault = kDefaultCategories.contains(cat);
                   return ListTile(
                     dense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -1280,22 +1269,28 @@ class _CategoriesSheet extends StatelessWidget {
                       cat,
                       style: const TextStyle(color: kTextMain, fontSize: 14),
                     ),
-                    trailing: isDefault
-                        ? const Text(
-                            'por defecto',
-                            style: TextStyle(color: kTextSoft, fontSize: 11),
-                          )
-                        : GestureDetector(
-                            onTap: () {
-                              state.removeCategory(cat);
-                              Navigator.pop(context);
-                            },
-                            child: const PhosphorIcon(
-                              PhosphorIconsLight.trash,
-                              color: kDanger,
-                              size: 18,
+                    trailing: GestureDetector(
+                      onTap: () {
+                        final removed = state.removeCategory(cat);
+                        if (!removed) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Debes conservar al menos una categoría',
+                              ),
+                              duration: Duration(seconds: 2),
                             ),
-                          ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const PhosphorIcon(
+                        PhosphorIconsLight.trash,
+                        color: kDanger,
+                        size: 18,
+                      ),
+                    ),
                   );
                 }).toList(),
               ),
