@@ -194,6 +194,43 @@ class AppState extends ChangeNotifier {
     return sorted.first;
   }
 
+  MapEntry<String, int>? get mostActiveMicroExpenseDay {
+    if (microExpenses.isEmpty) return null;
+
+    final countsByDay = <DateTime, int>{};
+    for (final expense in microExpenses) {
+      final day = DateTime(
+        expense.createdAt.year,
+        expense.createdAt.month,
+        expense.createdAt.day,
+      );
+      countsByDay[day] = (countsByDay[day] ?? 0) + 1;
+    }
+
+    final sortedDays = countsByDay.entries.toList()
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        if (byCount != 0) return byCount;
+        return b.key.compareTo(a.key);
+      });
+
+    final topDay = sortedDays.first;
+    return MapEntry(_formatMicroExpenseDay(topDay.key), topDay.value);
+  }
+
+  String _formatMicroExpenseDay(DateTime date) {
+    const weekdays = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
+    ];
+    return '${weekdays[date.weekday - 1]} ${date.day}';
+  }
+
   List<String> get assetNames =>
       assets.map((a) => a.name.trim()).where((n) => n.isNotEmpty).toList();
 
@@ -435,6 +472,7 @@ class AppState extends ChangeNotifier {
       amount: 0,
       category: microExpenseCategories.isNotEmpty ? microExpenseCategories.first : 'General',
       paymentMethod: defaultPayment,
+      createdAt: DateTime.now(),
     ));
     notifyListeners();
   }
@@ -449,6 +487,7 @@ class AppState extends ChangeNotifier {
       amount: amount,
       category: category,
       paymentMethod: paymentMethod,
+      createdAt: DateTime.now(),
     ));
     _applyCreditCardChargeDelta(paymentMethod: paymentMethod, deltaAmount: amount);
     notifyListeners();
@@ -677,6 +716,7 @@ class AppState extends ChangeNotifier {
             amount: m.amount,
             category: m.category,
             paymentMethod: m.paymentMethod,
+            createdAt: m.createdAt,
           ),
         );
       }

@@ -171,6 +171,26 @@ lib/
    - Descarga el archivo de configuración (`google-services.json` para Android, `GoogleService-Info.plist` para iOS)
    - Coloca en las carpetas correspondientes
 
+### 🔔 Configuración de Notificaciones Push (Firebase Cloud Messaging)
+
+La app usa únicamente **Firebase Cloud Messaging (FCM)** para notificaciones push.
+
+1. **Android**
+   - Verifica que `android/app/google-services.json` corresponda al `applicationId` real.
+   - En Firebase Console, agrega huellas **SHA-1 y SHA-256** del keystore debug/release.
+   - Acepta permiso de notificaciones en Android 13+ (`POST_NOTIFICATIONS`).
+
+2. **iOS**
+   - Sube tu APNs Key en Firebase Console (Cloud Messaging).
+   - Activa capacidades en Xcode para el target Runner:
+     - `Push Notifications`
+     - `Background Modes` con `Remote notifications`
+   - Verifica que `GoogleService-Info.plist` pertenezca al mismo bundle id del target.
+
+3. **Backend / envío**
+   - Envía mensajes FCM con `notification` (title/body) para comportamiento estándar.
+   - La app se suscribe al topic `finanzas-recordatorios`, por lo que puedes enviar push por topic.
+
 4. **Ejecutar la app**
    ```bash
    # Debug (Android/iOS)

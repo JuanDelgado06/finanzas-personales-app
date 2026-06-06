@@ -160,7 +160,7 @@ class _KpiHighlightsCard extends StatelessWidget {
         : usage >= 70
         ? kWarning
         : kSuccess;
-    final topCategory = state.topMicroExpenseCategory;
+    final mostActiveDay = state.mostActiveMicroExpenseDay;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -188,6 +188,13 @@ class _KpiHighlightsCard extends StatelessWidget {
             value: '${usage.toStringAsFixed(0)}%',
             valueColor: usageColor,
           ),
+          if (mostActiveDay != null)
+            _KpiRow(
+              label: 'Día con más gastos registrados',
+              value:
+                  '${mostActiveDay.key} · ${mostActiveDay.value} ${mostActiveDay.value == 1 ? 'gasto' : 'gastos'}',
+              valueColor: kTextMain,
+            ),
         ],
       ),
     );

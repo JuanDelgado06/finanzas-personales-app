@@ -1,9 +1,11 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../firebase_options.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint('FCM background message: ${message.messageId}');
 }
 
@@ -13,24 +15,14 @@ class FirebaseMessagingService {
   static final FirebaseMessagingService instance = FirebaseMessagingService._();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
-
-  static const AndroidNotificationChannel _androidChannel =
-      AndroidNotificationChannel(
-        'fcm_foreground_channel',
-        'Notificaciones push',
-        description: 'Canal para mostrar push de Firebase en primer plano',
-        importance: Importance.high,
-      );
 
   bool _initialized = false;
 
   Future<void> initialize() async {
     if (_initialized) return;
 
-    await _requestPermissions();
-    await _initLocalNotifications();
+    await requestPermissions();
+    await _configureForegroundPresentation();
     await _configureMessageHandlers();
 
     final token = await _messaging.getToken();
@@ -49,8 +41,8 @@ class FirebaseMessagingService {
     _initialized = true;
   }
 
-  Future<void> _requestPermissions() async {
-    await _messaging.requestPermission(
+  Future<NotificationSettings> requestPermissions() {
+    return _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -58,28 +50,17 @@ class FirebaseMessagingService {
     );
   }
 
-  Future<void> _initLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+  Future<void> _configureForegroundPresentation() async {
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
     );
-    const iosSettings = DarwinInitializationSettings();
-    const settings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await _localNotifications.initialize(settings);
-
-    final android = _localNotifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await android?.createNotificationChannel(_androidChannel);
   }
 
   Future<void> _configureMessageHandlers() async {
     FirebaseMessaging.onMessage.listen((message) async {
-      await _showForegroundNotification(message);
+      debugPrint('FCM foreground message: ${message.messageId}');
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -90,28 +71,5 @@ class FirebaseMessagingService {
     if (initialMessage != null) {
       debugPrint('FCM initial message: ${initialMessage.messageId}');
     }
-  }
-
-  Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final notification = message.notification;
-    if (notification == null) return;
-
-    const androidDetails = AndroidNotificationDetails(
-      'fcm_foreground_channel',
-      'Notificaciones push',
-      channelDescription: 'Canal para mostrar push de Firebase en primer plano',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    const iosDetails = DarwinNotificationDetails();
-
-    await _localNotifications.show(
-      notification.hashCode,
-      notification.title ?? 'Finanzas Personales',
-      notification.body ?? 'Tienes una notificacion nueva',
-      const NotificationDetails(android: androidDetails, iOS: iosDetails),
-      payload: message.data.toString(),
-    );
   }
 }

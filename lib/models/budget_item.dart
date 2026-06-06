@@ -105,21 +105,55 @@ class MicroExpense {
   double amount;
   String category;
   String paymentMethod;
+  DateTime createdAt;
 
   MicroExpense({
     required this.id,
     required this.amount,
     required this.category,
     required this.paymentMethod,
+    required this.createdAt,
   });
+
+  static DateTime _parseCreatedAt(dynamic raw, String fallbackId) {
+    if (raw is int) {
+      return DateTime.fromMillisecondsSinceEpoch(raw);
+    }
+
+    if (raw is String && raw.isNotEmpty) {
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) return parsed;
+
+      final asMillis = int.tryParse(raw);
+      if (asMillis != null) {
+        return DateTime.fromMillisecondsSinceEpoch(asMillis);
+      }
+    }
+
+    final fromId = int.tryParse(fallbackId);
+    if (fromId != null) {
+      return DateTime.fromMillisecondsSinceEpoch(fromId);
+    }
+
+    return DateTime.now();
+  }
 
   factory MicroExpense.fromJson(Map<String, dynamic> json) => MicroExpense(
         id: json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
         amount: (json['amount'] ?? 0).toDouble(),
         category: json['category'] ?? 'General',
         paymentMethod: json['paymentMethod'] ?? '',
+        createdAt: _parseCreatedAt(
+          json['createdAt'] ?? json['date'] ?? json['expenseDate'] ?? json['timestamp'],
+          json['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        ),
       );
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'amount': amount, 'category': category, 'paymentMethod': paymentMethod};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'amount': amount,
+        'category': category,
+        'paymentMethod': paymentMethod,
+        'createdAt': createdAt.toIso8601String(),
+      };
 }

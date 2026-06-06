@@ -608,6 +608,19 @@ class _MicroExpenseRow extends StatelessWidget {
     required this.state,
   });
 
+  String _formatExpenseDate(BuildContext context, DateTime value) {
+    final date = value.toLocal();
+    final now = DateTime.now();
+    final dayDate = DateTime(date.year, date.month, date.day);
+    final dayNow = DateTime(now.year, now.month, now.day);
+    final diff = dayNow.difference(dayDate).inDays;
+
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Ayer';
+
+    return MaterialLocalizations.of(context).formatShortDate(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     final borderRadius = isLastInGroup
@@ -726,6 +739,24 @@ class _MicroExpenseRow extends StatelessWidget {
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const PhosphorIcon(
+                          PhosphorIconsLight.calendarBlank,
+                          size: 11,
+                          color: kTextSoft,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatExpenseDate(context, item.createdAt),
+                          style: TextStyle(
+                            color: kTextSoft.withOpacity(0.85),
+                            fontSize: 11,
                           ),
                         ),
                       ],
