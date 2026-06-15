@@ -191,6 +191,19 @@ La app usa únicamente **Firebase Cloud Messaging (FCM)** para notificaciones pu
    - Envía mensajes FCM con `notification` (title/body) para comportamiento estándar.
    - La app se suscribe al topic `finanzas-recordatorios`, por lo que puedes enviar push por topic.
 
+### ⏰ Recordatorio diario automático (10:00 AM)
+
+Los recordatorios recurrentes se ejecutan desde la **API backend** (cron/scheduler), no desde este repositorio Flutter.
+
+Configuración recomendada en tu API:
+1. Crear endpoint interno protegido para enviar push al topic `finanzas-recordatorios`.
+2. Proteger el endpoint con secret (`x-cron-secret`) y variables de entorno.
+3. Programar cron diario a las `10:00` en zona `America/Bogota`.
+4. Enviar payload FCM con `notification.title`, `notification.body` y `data.type`.
+
+Nota:
+- Este proyecto Flutter solo recibe las notificaciones y gestiona la suscripción al topic.
+
 4. **Ejecutar la app**
    ```bash
    # Debug (Android/iOS)

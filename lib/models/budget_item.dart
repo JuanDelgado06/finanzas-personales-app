@@ -116,24 +116,55 @@ class MicroExpense {
   });
 
   static DateTime _parseCreatedAt(dynamic raw, String fallbackId) {
+    DateTime? fromEpoch(dynamic value) {
+      if (value == null) return null;
+
+      int? epoch;
+      if (value is int) {
+        epoch = value;
+      } else if (value is String) {
+        epoch = int.tryParse(value);
+      }
+
+      if (epoch == null) return null;
+
+      // 10-digit values are usually unix seconds, 13-digit are milliseconds.
+      final normalized = epoch < 100000000000 ? epoch * 1000 : epoch;
+      return DateTime.fromMillisecondsSinceEpoch(normalized);
+    }
+
+    if (raw is Map) {
+      final map = Map<String, dynamic>.from(raw);
+      final seconds = map['seconds'] ?? map['_seconds'];
+      if (seconds != null) {
+        final fromSeconds = fromEpoch(seconds);
+        if (fromSeconds != null) return fromSeconds;
+      }
+
+      final dateValue = map['\$date'] ?? map['date'];
+      if (dateValue != null) {
+        final fromDateEpoch = fromEpoch(dateValue);
+        if (fromDateEpoch != null) return fromDateEpoch;
+
+        final fromDateString = DateTime.tryParse(dateValue.toString());
+        if (fromDateString != null) return fromDateString;
+      }
+    }
+
     if (raw is int) {
-      return DateTime.fromMillisecondsSinceEpoch(raw);
+      return fromEpoch(raw) ?? DateTime.now();
     }
 
     if (raw is String && raw.isNotEmpty) {
       final parsed = DateTime.tryParse(raw);
       if (parsed != null) return parsed;
 
-      final asMillis = int.tryParse(raw);
-      if (asMillis != null) {
-        return DateTime.fromMillisecondsSinceEpoch(asMillis);
-      }
+      final asEpoch = fromEpoch(raw);
+      if (asEpoch != null) return asEpoch;
     }
 
-    final fromId = int.tryParse(fallbackId);
-    if (fromId != null) {
-      return DateTime.fromMillisecondsSinceEpoch(fromId);
-    }
+    final fromId = fromEpoch(fallbackId);
+    if (fromId != null) return fromId;
 
     return DateTime.now();
   }
@@ -154,6 +185,9 @@ class MicroExpense {
         'amount': amount,
         'category': category,
         'paymentMethod': paymentMethod,
+      // Keep compatibility with APIs that persist date fields under different keys.
+      'date': createdAt.toIso8601String(),
+      'timestamp': createdAt.millisecondsSinceEpoch,
         'createdAt': createdAt.toIso8601String(),
       };
 }
