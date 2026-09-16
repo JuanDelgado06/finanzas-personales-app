@@ -42,12 +42,98 @@ void _showAddExpenseSheet(
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
-class MicroExpensesScreen extends StatelessWidget {
+class MicroExpensesScreen extends StatefulWidget {
   const MicroExpensesScreen({super.key});
+
+  @override
+  State<MicroExpensesScreen> createState() => _MicroExpensesScreenState();
+}
+
+class _MicroExpensesScreenState extends State<MicroExpensesScreen> {
+  DateTime _selectedDate = DateTime.now();
+  bool _showAllExpenses = false;
+
+  List<int> _expenseIndexesForSelectedDate(AppState state) {
+    if (_showAllExpenses) {
+      return List<int>.generate(state.microExpenses.length, (index) => index);
+    }
+    return [
+      for (var i = 0; i < state.microExpenses.length; i++)
+        if (_isSameDay(state.microExpenses[i].createdAt, _selectedDate)) i,
+    ];
+  }
+
+  bool _isSameDay(DateTime first, DateTime second) {
+    final firstLocal = first.toLocal();
+    final secondLocal = second.toLocal();
+    return firstLocal.year == secondLocal.year &&
+        firstLocal.month == secondLocal.month &&
+        firstLocal.day == secondLocal.day;
+  }
+
+  String _selectedDateLabel() {
+    final today = DateTime.now();
+    if (_isSameDay(_selectedDate, today)) return 'Hoy';
+    if (_isSameDay(_selectedDate, today.subtract(const Duration(days: 1)))) {
+      return 'Ayer';
+    }
+    const weekdays = [
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+      'domingo',
+    ];
+    const months = [
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
+    ];
+    return '${weekdays[_selectedDate.weekday - 1]} ${_selectedDate.day} de '
+        '${months[_selectedDate.month - 1]}';
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      locale: const Locale('es', 'CO'),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _showAllExpenses = false;
+      });
+    }
+  }
+
+  void _changeDay(int days) {
+    final nextDate = _selectedDate.add(Duration(days: days));
+    final today = DateTime.now();
+    if (nextDate.isAfter(DateTime(today.year, today.month, today.day))) return;
+    setState(() {
+      _selectedDate = nextDate;
+      _showAllExpenses = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final expenseIndexes = _expenseIndexesForSelectedDate(state);
 
     return Scaffold(
       backgroundColor: kAppBg,
@@ -69,10 +155,33 @@ class MicroExpensesScreen extends StatelessWidget {
               child: _CategoriesRow(state: state),
             ),
           ),
+          SliverToBoxAdapter(
+            child: _DayFilterBar(
+              label: _showAllExpenses
+                  ? 'Todos los gastos'
+                  : _selectedDateLabel(),
+              onPrevious: () => _changeDay(-1),
+              onNext: () => _changeDay(1),
+              onPickDate: _pickDate,
+              onShowAll: () => setState(() => _showAllExpenses = true),
+              showAll: _showAllExpenses,
+              canGoPrevious: !_showAllExpenses,
+              canGoNext:
+                  !_showAllExpenses &&
+                  !_isSameDay(_selectedDate, DateTime.now()),
+            ),
+          ),
           if (state.microExpenses.isEmpty)
             SliverToBoxAdapter(child: _EmptyMicroState(state: state))
+          else if (expenseIndexes.isEmpty)
+            SliverToBoxAdapter(
+              child: _EmptyDayState(
+                dateLabel: _selectedDateLabel(),
+                onAddExpense: () => _showAddExpenseSheet(context, state),
+              ),
+            )
           else
-            _GroupedExpenseList(state: state),
+            _GroupedExpenseList(state: state, expenseIndexes: expenseIndexes),
           SliverToBoxAdapter(child: _SaveStatusBar(state: state)),
           const SliverToBoxAdapter(child: SizedBox(height: 104)),
         ],
@@ -127,7 +236,9 @@ class _SaveStatusBar extends StatelessWidget {
                 color: kAccent,
                 size: 14,
               ),
-              label: 'Guardado local, pendiente de sincronizar',
+              label: state.lastSaveOk
+                  ? 'Guardado local, pendiente de sincronizar'
+                  : 'No se pudo guardar en la nube',
               color: kAccent,
             )
           : state.lastSaveOk
@@ -244,6 +355,162 @@ class _EmptyMicroState extends StatelessWidget {
   }
 }
 
+class _EmptyDayState extends StatelessWidget {
+  final String dateLabel;
+  final VoidCallback onAddExpense;
+
+  const _EmptyDayState({required this.dateLabel, required this.onAddExpense});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: cardDecoration(),
+      child: Column(
+        children: [
+          const PhosphorIcon(
+            PhosphorIconsLight.calendarBlank,
+            color: kTextSoft,
+            size: 28,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sin gastos el $dateLabel',
+            style: const TextStyle(
+              color: kTextMain,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Prueba con otro día o registra un gasto nuevo.',
+            style: TextStyle(color: kTextSoft, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: onAddExpense,
+            icon: const PhosphorIcon(
+              PhosphorIconsLight.plus,
+              size: 16,
+              color: kAccent,
+            ),
+            label: const Text(
+              'Agregar gasto',
+              style: TextStyle(color: kAccent),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: kAccent),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayFilterBar extends StatelessWidget {
+  final String label;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onPickDate;
+  final VoidCallback onShowAll;
+  final bool showAll;
+  final bool canGoPrevious;
+  final bool canGoNext;
+
+  const _DayFilterBar({
+    required this.label,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onPickDate,
+    required this.onShowAll,
+    required this.showAll,
+    required this.canGoPrevious,
+    required this.canGoNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kLineSoft),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: 'Día anterior',
+              onPressed: canGoPrevious ? onPrevious : null,
+              icon: const PhosphorIcon(PhosphorIconsLight.caretLeft, size: 18),
+              color: kTextSoft,
+            ),
+            Expanded(
+              child: InkWell(
+                onTap: onPickDate,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const PhosphorIcon(
+                        PhosphorIconsLight.calendar,
+                        color: kAccent,
+                        size: 17,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: kTextMain,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: showAll ? null : onShowAll,
+              style: TextButton.styleFrom(
+                foregroundColor: kAccent,
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              child: Text(
+                'Todos',
+                style: TextStyle(
+                  color: showAll ? kTextSoft : kAccent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Día siguiente',
+              onPressed: canGoNext ? onNext : null,
+              icon: const PhosphorIcon(PhosphorIconsLight.caretRight, size: 18),
+              color: kTextSoft,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ExpenseListEntry {
   final String keyValue;
   final String category;
@@ -284,9 +551,10 @@ class _ExpenseListEntry {
 List<_ExpenseListEntry> _buildExpenseEntries(
   AppState state,
   Set<String> collapsedCategories,
+  List<int> expenseIndexes,
 ) {
   final Map<String, List<(int, MicroExpense)>> groups = {};
-  for (var i = 0; i < state.microExpenses.length; i++) {
+  for (final i in expenseIndexes) {
     final expense = state.microExpenses[i];
     groups.putIfAbsent(expense.category, () => []).add((i, expense));
   }
@@ -347,7 +615,11 @@ bool _sameKeyOrder(List<_ExpenseListEntry> a, List<_ExpenseListEntry> b) {
 // ── Grouped expense list ─────────────────────────────────────────────────────
 class _GroupedExpenseList extends StatefulWidget {
   final AppState state;
-  const _GroupedExpenseList({required this.state});
+  final List<int> expenseIndexes;
+  const _GroupedExpenseList({
+    required this.state,
+    required this.expenseIndexes,
+  });
 
   @override
   State<_GroupedExpenseList> createState() => _GroupedExpenseListState();
@@ -371,14 +643,24 @@ class _GroupedExpenseListState extends State<_GroupedExpenseList> {
   void initState() {
     super.initState();
     _syncCollapsedCategories();
-    _entries = _buildExpenseEntries(widget.state, _collapsedCategories);
+    _entries = _buildExpenseEntries(
+      widget.state,
+      _collapsedCategories,
+      widget.expenseIndexes,
+    );
   }
 
   @override
   void didUpdateWidget(covariant _GroupedExpenseList oldWidget) {
     super.didUpdateWidget(oldWidget);
     _syncCollapsedCategories();
-    _applyEntries(_buildExpenseEntries(widget.state, _collapsedCategories));
+    _applyEntries(
+      _buildExpenseEntries(
+        widget.state,
+        _collapsedCategories,
+        widget.expenseIndexes,
+      ),
+    );
   }
 
   void _toggleCategory(String category) {
@@ -387,7 +669,13 @@ class _GroupedExpenseListState extends State<_GroupedExpenseList> {
         _collapsedCategories.remove(category);
       }
     });
-    _applyEntries(_buildExpenseEntries(widget.state, _collapsedCategories));
+    _applyEntries(
+      _buildExpenseEntries(
+        widget.state,
+        _collapsedCategories,
+        widget.expenseIndexes,
+      ),
+    );
   }
 
   void _applyEntries(List<_ExpenseListEntry> nextEntries) {
@@ -520,7 +808,6 @@ class _CategoryHeaderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = kAccent;
     return Container(
       margin: EdgeInsets.fromLTRB(16, isFirstSection ? 0 : 10, 16, 0),
       decoration: BoxDecoration(
@@ -641,19 +928,27 @@ class _MicroExpenseRow extends StatelessWidget {
             },
             backgroundColor: kAccent,
             borderRadius: BorderRadius.only(
-              bottomLeft: isLastInGroup ? const Radius.circular(16) : Radius.zero,
+              bottomLeft: isLastInGroup
+                  ? const Radius.circular(16)
+                  : Radius.zero,
             ),
             child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                PhosphorIcon(PhosphorIconsLight.pencilSimple,
-                    color: Colors.white, size: 18),
+                PhosphorIcon(
+                  PhosphorIconsLight.pencilSimple,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 SizedBox(height: 4),
-                Text('Editar',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  'Editar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -677,19 +972,27 @@ class _MicroExpenseRow extends StatelessWidget {
             },
             backgroundColor: kDanger,
             borderRadius: BorderRadius.only(
-              bottomRight: isLastInGroup ? const Radius.circular(16) : Radius.zero,
+              bottomRight: isLastInGroup
+                  ? const Radius.circular(16)
+                  : Radius.zero,
             ),
             child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                PhosphorIcon(PhosphorIconsLight.trash,
-                    color: Colors.white, size: 18),
+                PhosphorIcon(
+                  PhosphorIconsLight.trash,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 SizedBox(height: 4),
-                Text('Eliminar',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  'Eliminar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -800,7 +1103,7 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
     super.initState();
     final cats = widget.state.microExpenseCategories;
     final pays = widget.state.paymentMethodNames.isNotEmpty
-      ? widget.state.paymentMethodNames
+        ? widget.state.paymentMethodNames
         : ['Efectivo'];
     if (widget.editIndex != null) {
       final item = widget.state.microExpenses[widget.editIndex!];
@@ -859,7 +1162,7 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
     final isEdit = widget.editIndex != null;
     final cats = widget.state.microExpenseCategories;
     final pays = widget.state.paymentMethodNames.isNotEmpty
-      ? widget.state.paymentMethodNames
+        ? widget.state.paymentMethodNames
         : ['Efectivo'];
 
     return Padding(
@@ -1378,7 +1681,8 @@ class _MiniBalanceCard extends StatelessWidget {
       tween: Tween<double>(begin: 0.985, end: 1),
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
-      builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         decoration: BoxDecoration(
@@ -1390,9 +1694,7 @@ class _MiniBalanceCard extends StatelessWidget {
             stops: [0.0, 0.52, 1.0],
           ),
           border: Border.all(
-            color: isPositive
-                ? kLine
-                : kDanger.withOpacity(0.26),
+            color: isPositive ? kLine : kDanger.withOpacity(0.26),
             width: 1,
           ),
           boxShadow: [
@@ -1424,7 +1726,10 @@ class _MiniBalanceCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [Colors.white.withOpacity(0.08), Colors.transparent],
+                      colors: [
+                        Colors.white.withOpacity(0.08),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                 ),
@@ -1434,18 +1739,29 @@ class _MiniBalanceCard extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-                      style: const TextStyle(color: kTextSoft, fontSize: 13, fontWeight: FontWeight.w600),
+                      state.monthName.isEmpty
+                          ? 'Presupuesto Mensual'
+                          : state.monthName,
+                      style: const TextStyle(
+                        color: kTextSoft,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     TweenAnimationBuilder<double>(
-                      tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
+                      tween: Tween<double>(
+                        begin: state.netWorth,
+                        end: state.netWorth,
+                      ),
                       duration: const Duration(milliseconds: 500),
                       curve: Curves.easeOutCubic,
                       builder: (context, value, _) => Text(
                         formatCurrencyFull(value),
                         style: TextStyle(
-                          color: isPositive ? const Color(0xFF23D47E) : const Color(0xFFFF6F7D),
+                          color: isPositive
+                              ? const Color(0xFF23D47E)
+                              : const Color(0xFFFF6F7D),
                           fontSize: 41,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1.3,
@@ -1460,7 +1776,10 @@ class _MiniBalanceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: kSurfaceSoft.withOpacity(0.32),
                         borderRadius: BorderRadius.circular(12),
@@ -1535,9 +1854,11 @@ class _BalTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(color: kTextSoft, fontSize: 10.5),
-              textAlign: TextAlign.center),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSoft, fontSize: 10.5),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

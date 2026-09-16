@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -28,17 +29,29 @@ void main() async {
 class FinanzasApp extends StatelessWidget {
   const FinanzasApp({super.key});
 
+  static final AuthService _authService = AuthService();
+
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
     return ChangeNotifierProvider(
-      create: (_) => AppState(authService: authService),
+      create: (_) => AppState(authService: _authService),
       child: MaterialApp(
         title: 'Finanzas Personales',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es', 'CO'),
+          Locale('es'),
+          Locale('en'),
+        ],
         home: StreamBuilder<User?>(
-          stream: authService.authStateChanges,
+          stream: _authService.authStateChanges,
+          initialData: _authService.currentUser,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
@@ -46,7 +59,7 @@ class FinanzasApp extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator(color: kAccent)),
               );
             }
-            if (snapshot.hasData) {
+            if (snapshot.data != null) {
               return const _HomeGateway();
             }
             return const LoginScreen();

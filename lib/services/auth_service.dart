@@ -10,8 +10,8 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   bool get isAnonymous => _auth.currentUser?.isAnonymous ?? true;
 
-  Future<String?> getIdToken() async {
-    return await _auth.currentUser?.getIdToken();
+  Future<String?> getIdToken({bool forceRefresh = false}) async {
+    return await _auth.currentUser?.getIdToken(forceRefresh);
   }
 
   Future<UserCredential> signInWithGoogle() async {
@@ -25,7 +25,8 @@ class AuthService {
       );
       return await _auth.signInWithCredential(credential);
     } on PlatformException catch (e) {
-      if (e.code == 'sign_in_failed' && (e.message ?? '').contains('ApiException: 10')) {
+      if (e.code == 'sign_in_failed' &&
+          (e.message ?? '').contains('ApiException: 10')) {
         throw FirebaseAuthException(
           code: 'google-signin-misconfigured',
           message:
@@ -74,7 +75,8 @@ class AuthService {
         rethrow;
       }
     } on PlatformException catch (e) {
-      if (e.code == 'sign_in_failed' && (e.message ?? '').contains('ApiException: 10')) {
+      if (e.code == 'sign_in_failed' &&
+          (e.message ?? '').contains('ApiException: 10')) {
         throw FirebaseAuthException(
           code: 'google-signin-misconfigured',
           message:

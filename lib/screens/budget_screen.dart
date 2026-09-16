@@ -47,7 +47,8 @@ class BudgetScreen extends StatelessWidget {
                           (e) => _AssetRow(
                             index: e.key,
                             item: e.value,
-                            availableAmount: availableById[e.value.id] ?? e.value.amount,
+                            availableAmount:
+                                availableById[e.value.id] ?? e.value.amount,
                             onRemove: () => state.removeAsset(e.key),
                             onChanged: (name, amount) => state.updateAsset(
                               e.key,
@@ -75,10 +76,14 @@ class BudgetScreen extends StatelessWidget {
                           (e) => _AssetRow(
                             index: e.key,
                             item: e.value,
-                            availableAmount: availableById[e.value.id] ?? e.value.amount,
+                            availableAmount:
+                                availableById[e.value.id] ?? e.value.amount,
                             onRemove: () => state.removeOwed(e.key),
-                            onChanged: (name, amount) =>
-                                state.updateOwed(e.key, name: name, amount: amount),
+                            onChanged: (name, amount) => state.updateOwed(
+                              e.key,
+                              name: name,
+                              amount: amount,
+                            ),
                           ),
                         )
                         .toList(),
@@ -177,7 +182,10 @@ class BudgetScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     onTap: () => _saveBudget(context, state),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xEE10233F),
                         borderRadius: BorderRadius.circular(14),
@@ -201,7 +209,10 @@ class BudgetScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               'Cambios sin guardar · Toca para actualizar',
-                              style: TextStyle(color: kTextMain, fontSize: 12.5),
+                              style: TextStyle(
+                                color: kTextMain,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
                           PhosphorIcon(
@@ -233,7 +244,7 @@ class BudgetScreen extends StatelessWidget {
               ? (queued
                     ? 'Guardado local. Pendiente de sincronizar'
                     : 'Presupuesto guardado ✓')
-              : 'Error al guardar',
+              : 'No se pudo guardar en la nube. Quedó guardado localmente.',
         ),
         backgroundColor: ok ? (queued ? kAccent : kSuccess) : kDanger,
       ),
@@ -288,7 +299,8 @@ class _SummaryCard extends StatelessWidget {
       tween: Tween<double>(begin: 0.985, end: 1),
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
-      builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         decoration: BoxDecoration(
@@ -300,9 +312,7 @@ class _SummaryCard extends StatelessWidget {
             stops: [0.0, 0.52, 1.0],
           ),
           border: Border.all(
-            color: isPositive
-                ? kLine
-                : kDanger.withOpacity(0.26),
+            color: isPositive ? kLine : kDanger.withOpacity(0.26),
             width: 1,
           ),
           boxShadow: [
@@ -334,7 +344,10 @@ class _SummaryCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
-                      colors: [Colors.white.withOpacity(0.08), Colors.transparent],
+                      colors: [
+                        Colors.white.withOpacity(0.08),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                 ),
@@ -344,18 +357,29 @@ class _SummaryCard extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      state.monthName.isEmpty ? 'Presupuesto Mensual' : state.monthName,
-                      style: const TextStyle(color: kTextSoft, fontSize: 13, fontWeight: FontWeight.w600),
+                      state.monthName.isEmpty
+                          ? 'Presupuesto Mensual'
+                          : state.monthName,
+                      style: const TextStyle(
+                        color: kTextSoft,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     TweenAnimationBuilder<double>(
-                      tween: Tween<double>(begin: state.netWorth, end: state.netWorth),
+                      tween: Tween<double>(
+                        begin: state.netWorth,
+                        end: state.netWorth,
+                      ),
                       duration: const Duration(milliseconds: 500),
                       curve: Curves.easeOutCubic,
                       builder: (context, value, _) => Text(
                         formatCurrencyFull(value),
                         style: TextStyle(
-                          color: isPositive ? const Color(0xFF23D47E) : const Color(0xFFFF6F7D),
+                          color: isPositive
+                              ? const Color(0xFF23D47E)
+                              : const Color(0xFFFF6F7D),
                           fontSize: 41,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1.3,
@@ -370,7 +394,10 @@ class _SummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: kSurfaceSoft.withOpacity(0.32),
                         borderRadius: BorderRadius.circular(12),
@@ -445,9 +472,11 @@ class _SummaryTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(color: kTextSoft, fontSize: 10.5),
-              textAlign: TextAlign.center),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSoft, fontSize: 10.5),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -559,10 +588,7 @@ class _MonthInputState extends State<_MonthInput> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            kSurface,
-            isFocused ? kSurfaceHover : kSurfaceSoft,
-          ],
+          colors: [kSurface, isFocused ? kSurfaceHover : kSurfaceSoft],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -638,7 +664,7 @@ class _MonthInputState extends State<_MonthInput> {
             focusNode: _focusNode,
             onChanged: (v) {
               widget.state.monthName = v;
-                widget.state.markBudgetDirty();
+              widget.state.markBudgetDirty();
             },
             style: const TextStyle(
               color: kTextMain,
@@ -675,7 +701,10 @@ class _MonthInputState extends State<_MonthInput> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: _pickMonth,
-              icon: const PhosphorIcon(PhosphorIconsLight.calendarDots, size: 15),
+              icon: const PhosphorIcon(
+                PhosphorIconsLight.calendarDots,
+                size: 15,
+              ),
               label: const Text('Elegir mes'),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: kLine),
@@ -683,7 +712,10 @@ class _MonthInputState extends State<_MonthInput> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
               ),
             ),
           ),
@@ -753,7 +785,11 @@ class _SectionState extends State<_Section> {
                       children: [
                         Row(
                           children: [
-                            PhosphorIcon(widget.iconData, color: widget.iconColor, size: 18),
+                            PhosphorIcon(
+                              widget.iconData,
+                              color: widget.iconColor,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               widget.title,
@@ -770,10 +806,14 @@ class _SectionState extends State<_Section> {
                                 onTap: widget.onAddExtra!,
                               ),
                             const SizedBox(width: 4),
-                            _AddBtn(label: widget.onAddLabel, onTap: widget.onAdd),
+                            _AddBtn(
+                              label: widget.onAddLabel,
+                              onTap: widget.onAdd,
+                            ),
                             const SizedBox(width: 4),
                             GestureDetector(
-                              onTap: () => setState(() => _expanded = !_expanded),
+                              onTap: () =>
+                                  setState(() => _expanded = !_expanded),
                               child: Container(
                                 width: 28,
                                 height: 28,
@@ -895,8 +935,9 @@ class _AmountInputState extends State<_AmountInput> {
   @override
   void didUpdateWidget(covariant _AmountInput oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextText =
-        widget.initial == 0 ? '' : widget.initial.toStringAsFixed(0);
+    final nextText = widget.initial == 0
+        ? ''
+        : widget.initial.toStringAsFixed(0);
     if (_ctrl.text == nextText) return;
     _ctrl.value = TextEditingValue(
       text: nextText,
@@ -1071,7 +1112,10 @@ class _DayInputState extends State<_DayInput> {
         hintText: widget.hint,
         hintStyle: const TextStyle(color: kTextSoft, fontSize: 12),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: kLine),
@@ -1368,7 +1412,10 @@ class _CreditCardRowState extends State<_CreditCardRow> {
     final currentBalance = _derivedBalance();
     widget.item.balance = currentBalance;
     final utilization = widget.item.creditLimit > 0
-      ? (widget.item.paymentTotal / widget.item.creditLimit * 100).clamp(0, 100)
+        ? (widget.item.paymentTotal / widget.item.creditLimit * 100).clamp(
+            0,
+            100,
+          )
         : 0;
     final numericId = widget.item.id.replaceAll(RegExp(r'[^0-9]'), '');
     final last4 = numericId.length >= 4
@@ -1481,7 +1528,9 @@ class _CreditCardRowState extends State<_CreditCardRow> {
                                     height: 22,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: const Color(0xFFF79E1B).withOpacity(0.85),
+                                      color: const Color(
+                                        0xFFF79E1B,
+                                      ).withOpacity(0.85),
                                     ),
                                   ),
                                 ),

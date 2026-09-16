@@ -9,7 +9,12 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 
 const List<String> kDefaultCategories = [
-  'Comida', 'Transporte', 'Mercado', 'Salud', 'Hogar', 'Otros'
+  'Comida',
+  'Transporte',
+  'Mercado',
+  'Salud',
+  'Hogar',
+  'Otros',
 ];
 
 class AppState extends ChangeNotifier {
@@ -17,8 +22,8 @@ class AppState extends ChangeNotifier {
   late final ApiService apiService;
 
   // Form state
-  static const String _budgetsCacheKey = 'saved_budgets_cache_v1';
-  static const String _pendingOpsCacheKey = 'pending_budget_ops_v1';
+  static const String _budgetsCacheKeyPrefix = 'saved_budgets_cache_v1';
+  static const String _pendingOpsCacheKeyPrefix = 'pending_budget_ops_v1';
   bool _syncingPendingOps = false;
   int _pendingOpsCount = 0;
   bool _hasUnsavedBudgetChanges = false;
@@ -44,20 +49,33 @@ class AppState extends ChangeNotifier {
   // Saved budgets
   List<MonthlyBudget> savedBudgets = [];
   bool loadingBudgets = false;
-  bool isLoadingMonth = false;  // Indicador para el cargamento inicial del mes
+  bool isLoadingMonth = false; // Indicador para el cargamento inicial del mes
+  bool _reportedServerMisconfiguration = false;
 
   bool get isSyncingPendingOps => _syncingPendingOps;
   bool get hasPendingSync => _pendingOpsCount > 0;
   int get pendingOpsCount => _pendingOpsCount;
   bool get hasUnsavedBudgetChanges => _hasUnsavedBudgetChanges;
 
+  String get _userCacheKey {
+    final uid = authService.currentUser?.uid;
+    return uid == null || uid.isEmpty ? 'anonymous' : uid;
+  }
+
+  String get _budgetsCacheKey => '$_budgetsCacheKeyPrefix:$_userCacheKey';
+
+  String get _pendingOpsCacheKey => '$_pendingOpsCacheKeyPrefix:$_userCacheKey';
+
   // Auto-save state
   bool isSaving = false;
   bool lastSaveOk = true;
+  String? lastSaveError;
   Timer? _saveDebounce;
 
   AppState({required this.authService}) {
-    apiService = ApiService(getIdToken: authService.getIdToken);
+    apiService = ApiService(
+      getIdToken: () => authService.getIdToken(forceRefresh: true),
+    );
     _resetForm();
     _initPendingOpsState();
   }
@@ -69,8 +87,7 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Calculated totals ──────────────────────────────────────────────────────
-  double get _baseAssets =>
-      assets.fold(0, (sum, i) => sum + i.amount);
+  double get _baseAssets => assets.fold(0, (sum, i) => sum + i.amount);
 
   String _normalizePaymentMethod(String value) => value.trim().toLowerCase();
 
@@ -119,7 +136,9 @@ class AppState extends ChangeNotifier {
         if (remainingExpense <= 0) break;
         final available = remainingById[item.id] ?? 0;
         if (available <= 0) continue;
-        final applied = remainingExpense <= available ? remainingExpense : available;
+        final applied = remainingExpense <= available
+            ? remainingExpense
+            : available;
         remainingById[item.id] = available - applied;
         remainingExpense -= applied;
       }
@@ -129,7 +148,10 @@ class AppState extends ChangeNotifier {
   }
 
   double get _microExpensesCoveredByAssets {
-    final remainingTotal = availableAmountByItemId.values.fold(0.0, (sum, value) => sum + value);
+    final remainingTotal = availableAmountByItemId.values.fold(
+      0.0,
+      (sum, value) => sum + value,
+    );
     final covered = _baseAssets - remainingTotal;
     return covered > 0 ? covered : 0;
   }
@@ -147,30 +169,37 @@ class AppState extends ChangeNotifier {
   }
 
   double get _uncoveredMicroExpenses {
-    final remaining = totalMicroExpenses - _microExpensesCoveredByAssets - _microExpensesCoveredByCreditCards;
+    final remaining =
+        totalMicroExpenses -
+        _microExpensesCoveredByAssets -
+        _microExpensesCoveredByCreditCards;
     return remaining > 0 ? remaining : 0;
   }
 
-    double get totalAssets =>
+  double get totalAssets =>
       availableAmountByItemId.values.fold(0.0, (sum, value) => sum + value) +
       _totalOwed;
 
   double get totalMicroExpenses =>
       microExpenses.fold(0, (sum, m) => sum + m.amount);
 
-  double get totalLiabilitiesWithoutMicro => liabilities.fold(0.0, (sum, l) {
+  double get totalLiabilitiesWithoutMicro =>
+      liabilities.fold(0.0, (sum, l) {
         if (l is Liability) return sum + l.amount;
         return sum;
       }) +
       creditCards.fold(0.0, (sum, c) => sum + c.paymentTotal);
-  double get partialLiabilitiesWithoutMicro => liabilities.fold(0.0, (sum, l) {
+  double get partialLiabilitiesWithoutMicro =>
+      liabilities.fold(0.0, (sum, l) {
         if (l is Liability) return sum + l.amount;
         return sum;
       }) +
       creditCards.fold(0.0, (sum, c) => sum + c.minimum);
 
-  double get totalLiabilities => totalLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
-  double get partialLiabilities => partialLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
+  double get totalLiabilities =>
+      totalLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
+  double get partialLiabilities =>
+      partialLiabilitiesWithoutMicro + _uncoveredMicroExpenses;
   double get netWorth => totalAssets - totalLiabilities;
   double get partialNetWorth => totalAssets - partialLiabilities;
   double get savingsGoal => totalAssets - partialLiabilities;
@@ -386,11 +415,20 @@ class AppState extends ChangeNotifier {
   }
 
   void addAsset() {
-    assets.add(BudgetItem(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', amount: 0));
+    assets.add(
+      BudgetItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: '',
+        amount: 0,
+      ),
+    );
     markBudgetDirty();
   }
 
-  void removeAsset(int index) { assets.removeAt(index); markBudgetDirty(); }
+  void removeAsset(int index) {
+    assets.removeAt(index);
+    markBudgetDirty();
+  }
 
   void updateOwed(int index, {String? name, double? amount}) {
     if (name != null) owed[index].name = name;
@@ -399,14 +437,29 @@ class AppState extends ChangeNotifier {
   }
 
   void addOwed() {
-    owed.add(BudgetItem(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', amount: 0));
+    owed.add(
+      BudgetItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: '',
+        amount: 0,
+      ),
+    );
     markBudgetDirty();
   }
 
-  void removeOwed(int index) { owed.removeAt(index); markBudgetDirty(); }
+  void removeOwed(int index) {
+    owed.removeAt(index);
+    markBudgetDirty();
+  }
 
   void addLiability() {
-    liabilities.add(Liability(id: DateTime.now().millisecondsSinceEpoch.toString(), name: '', amount: 0));
+    liabilities.add(
+      Liability(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: '',
+        amount: 0,
+      ),
+    );
     markBudgetDirty();
   }
 
@@ -440,7 +493,8 @@ class AppState extends ChangeNotifier {
     if (cardIndex < 0) return 'No se encontro la tarjeta';
 
     final assetIndex = assets.indexWhere(
-      (a) => _normalizePaymentMethod(a.name) == _normalizePaymentMethod(assetName),
+      (a) =>
+          _normalizePaymentMethod(a.name) == _normalizePaymentMethod(assetName),
     );
     if (assetIndex < 0) return 'No se encontro el activo de pago';
 
@@ -463,17 +517,24 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  void removeLiability(int index) { liabilities.removeAt(index); markBudgetDirty(); }
+  void removeLiability(int index) {
+    liabilities.removeAt(index);
+    markBudgetDirty();
+  }
 
   void addMicroExpense() {
     final defaultPayment = assetNames.isNotEmpty ? assetNames.first : '';
-    microExpenses.add(MicroExpense(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      amount: 0,
-      category: microExpenseCategories.isNotEmpty ? microExpenseCategories.first : 'General',
-      paymentMethod: defaultPayment,
-      createdAt: DateTime.now(),
-    ));
+    microExpenses.add(
+      MicroExpense(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        amount: 0,
+        category: microExpenseCategories.isNotEmpty
+            ? microExpenseCategories.first
+            : 'General',
+        paymentMethod: defaultPayment,
+        createdAt: DateTime.now(),
+      ),
+    );
     notifyListeners();
   }
 
@@ -482,19 +543,25 @@ class AppState extends ChangeNotifier {
     required String category,
     required String paymentMethod,
   }) {
-    microExpenses.add(MicroExpense(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      amount: amount,
-      category: category,
+    microExpenses.add(
+      MicroExpense(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        amount: amount,
+        category: category,
+        paymentMethod: paymentMethod,
+        createdAt: DateTime.now(),
+      ),
+    );
+    _applyCreditCardChargeDelta(
       paymentMethod: paymentMethod,
-      createdAt: DateTime.now(),
-    ));
-    _applyCreditCardChargeDelta(paymentMethod: paymentMethod, deltaAmount: amount);
+      deltaAmount: amount,
+    );
     notifyListeners();
     _scheduleSave();
   }
 
-  void updateMicroExpenseDirect(int index, {
+  void updateMicroExpenseDirect(
+    int index, {
     required double amount,
     required String category,
     required String paymentMethod,
@@ -509,19 +576,29 @@ class AppState extends ChangeNotifier {
     microExpenses[index].category = category;
     microExpenses[index].paymentMethod = paymentMethod;
 
-    _applyCreditCardChargeDelta(paymentMethod: paymentMethod, deltaAmount: amount);
+    _applyCreditCardChargeDelta(
+      paymentMethod: paymentMethod,
+      deltaAmount: amount,
+    );
     notifyListeners();
     _scheduleSave();
   }
 
-  void updateMicroExpense(int index, {double? amount, String? category, String? paymentMethod}) {
+  void updateMicroExpense(
+    int index, {
+    double? amount,
+    String? category,
+    String? paymentMethod,
+  }) {
     final old = microExpenses[index];
     final oldAmount = old.amount;
     final oldMethod = old.paymentMethod;
 
     if (amount != null) microExpenses[index].amount = amount;
     if (category != null) microExpenses[index].category = category;
-    if (paymentMethod != null) microExpenses[index].paymentMethod = paymentMethod;
+    if (paymentMethod != null) {
+      microExpenses[index].paymentMethod = paymentMethod;
+    }
 
     final next = microExpenses[index];
     _applyCreditCardChargeDelta(
@@ -608,10 +685,12 @@ class AppState extends ChangeNotifier {
     try {
       await apiService.saveBudget(budget);
       lastSaveOk = true;
+      lastSaveError = null;
       await _syncPendingOperations(refreshBudgets: true);
     } catch (e) {
       debugPrint('Auto-save error: $e');
-      lastSaveOk = true;
+      lastSaveOk = false;
+      lastSaveError = e.toString();
       await _enqueuePendingSave(budget);
       _upsertLocalBudget(budget);
       await _writeBudgetsCache(savedBudgets);
@@ -737,9 +816,21 @@ class AppState extends ChangeNotifier {
     try {
       await _syncPendingOperations(refreshBudgets: false);
       savedBudgets = await apiService.getBudgets();
+      _reportedServerMisconfiguration = false;
       await _writeBudgetsCache(savedBudgets);
     } catch (e) {
-      debugPrint('Error loading budgets: $e');
+      final errorText = e.toString();
+      if (errorText.contains('server-misconfiguration')) {
+        if (!_reportedServerMisconfiguration) {
+          debugPrint(
+            'Backend con configuracion invalida (server-misconfiguration). '
+            'Verifica variables de entorno de Firebase Admin y MongoDB en Vercel.',
+          );
+          _reportedServerMisconfiguration = true;
+        }
+      } else {
+        debugPrint('Error loading budgets: $e');
+      }
       final cached = await _readBudgetsCache();
       if (cached.isNotEmpty) {
         savedBudgets = cached;
@@ -789,17 +880,20 @@ class AppState extends ChangeNotifier {
       await apiService.saveBudget(budget);
       await _syncPendingOperations(refreshBudgets: false);
       await loadBudgets();
+      lastSaveOk = true;
+      lastSaveError = null;
       clearBudgetDirty(notify: false);
       return true;
     } catch (e) {
       debugPrint('Error saving budget: $e');
-      lastSaveOk = true;
+      lastSaveOk = false;
+      lastSaveError = e.toString();
       await _enqueuePendingSave(budget);
       _upsertLocalBudget(budget);
       await _writeBudgetsCache(savedBudgets);
       clearBudgetDirty(notify: false);
       notifyListeners();
-      return true;
+      return false;
     }
   }
 
@@ -888,7 +982,10 @@ class AppState extends ChangeNotifier {
       if (op['type'] != 'save') return false;
       final rawBudget = op['budget'];
       if (rawBudget is! Map) return false;
-      final pendingMonth = (rawBudget['monthName'] ?? '').toString().trim().toLowerCase();
+      final pendingMonth = (rawBudget['monthName'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
       return pendingMonth == monthKey;
     });
     ops.add({
@@ -941,7 +1038,9 @@ class AppState extends ChangeNotifier {
             processed++;
             continue;
           }
-          final budget = MonthlyBudget.fromJson(Map<String, dynamic>.from(rawBudget));
+          final budget = MonthlyBudget.fromJson(
+            Map<String, dynamic>.from(rawBudget),
+          );
           await apiService.saveBudget(budget);
           processed++;
           continue;
@@ -963,7 +1062,9 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Pending sync paused: $e');
     } finally {
-      final remaining = processed >= ops.length ? <Map<String, dynamic>>[] : ops.sublist(processed);
+      final remaining = processed >= ops.length
+          ? <Map<String, dynamic>>[]
+          : ops.sublist(processed);
       await _writePendingOpsCache(remaining);
       _syncingPendingOps = false;
       notifyListeners();

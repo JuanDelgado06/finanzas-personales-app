@@ -8,11 +8,14 @@ class ApiService {
 
   final Future<String?> Function() _getIdToken;
 
-  ApiService({required Future<String?> Function() getIdToken}) : _getIdToken = getIdToken;
+  ApiService({required Future<String?> Function() getIdToken})
+    : _getIdToken = getIdToken;
 
   Future<Map<String, String>> _authHeaders() async {
     final token = await _getIdToken();
-    if (token == null) return {'Content-Type': 'application/json'};
+    if (token == null || token.isEmpty) {
+      throw Exception('No hay una sesión autenticada para cargar presupuestos');
+    }
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -22,7 +25,11 @@ class ApiService {
   List<dynamic> _extractBudgetList(dynamic decoded) {
     if (decoded is List) return decoded;
     if (decoded is Map<String, dynamic>) {
-      final candidates = [decoded['budgets'], decoded['data'], decoded['items']];
+      final candidates = [
+        decoded['budgets'],
+        decoded['data'],
+        decoded['items'],
+      ];
       for (final c in candidates) {
         if (c is List) return c;
       }
@@ -43,32 +50,45 @@ class ApiService {
 
   Future<List<MonthlyBudget>> getBudgets() async {
     final headers = await _authHeaders();
-    final response = await http.get(Uri.parse('$_baseUrl/api/budgets'), headers: headers);
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/budgets'),
+      headers: headers,
+    );
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-      debugPrint('getBudgets raw: ${response.body.substring(0, response.body.length.clamp(0, 2000))}');
+      debugPrint(
+        'getBudgets raw: ${response.body.substring(0, response.body.length.clamp(0, 2000))}',
+      );
       final List<dynamic> data = _extractBudgetList(decoded);
       return data.map((b) => MonthlyBudget.fromJson(b)).toList();
     }
-    throw Exception('Error cargando presupuestos: ${response.statusCode} - ${response.body}');
+    throw Exception(
+      'Error cargando presupuestos: ${response.statusCode} - ${response.body}',
+    );
   }
 
   Future<MonthlyBudget> saveBudget(MonthlyBudget budget) async {
     final headers = await _authHeaders();
     final payload = budget.toJson();
-    debugPrint('saveBudget payload: ${jsonEncode(payload).substring(0, jsonEncode(payload).length.clamp(0, 2000))}');
+    debugPrint(
+      'saveBudget payload: ${jsonEncode(payload).substring(0, jsonEncode(payload).length.clamp(0, 2000))}',
+    );
     final response = await http.post(
       Uri.parse('$_baseUrl/api/budgets'),
       headers: headers,
       body: jsonEncode(payload),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint('saveBudget raw response: ${response.body.substring(0, response.body.length.clamp(0, 2000))}');
+      debugPrint(
+        'saveBudget raw response: ${response.body.substring(0, response.body.length.clamp(0, 2000))}',
+      );
       final decoded = jsonDecode(response.body);
       final budgetMap = _extractBudgetObject(decoded);
       return MonthlyBudget.fromJson(budgetMap);
     }
-    throw Exception('Error guardando presupuesto: ${response.statusCode} - ${response.body}');
+    throw Exception(
+      'Error guardando presupuesto: ${response.statusCode} - ${response.body}',
+    );
   }
 
   Future<void> deleteBudget(String monthSlug) async {
