@@ -7,6 +7,7 @@ import '../models/budget_item.dart';
 import '../models/monthly_budget.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 
 const List<String> kDefaultCategories = [
   'Comida',
@@ -277,9 +278,34 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Form actions ───────────────────────────────────────────────────────────
+  bool _monthNameTaken(String name) {
+    final key = name.trim().toLowerCase();
+    if (key.isEmpty) return false;
+    return savedBudgets.any((b) => b.monthName.trim().toLowerCase() == key);
+  }
+
+  DateTime _addMonths(DateTime date, int months) {
+    final totalMonths = date.month - 1 + months;
+    return DateTime(date.year + totalMonths ~/ 12, totalMonths % 12 + 1);
+  }
+
+  /// Devuelve el primer mes (a partir de hoy) que todavía no tiene un
+  /// presupuesto guardado, para que "Nuevo mes" nunca reutilice el nombre de
+  /// un mes ya guardado y termine sobrescribiéndolo al autoguardar.
+  DateTime _nextAvailableMonthDate() {
+    var candidate = DateTime(DateTime.now().year, DateTime.now().month);
+    var guard = 0;
+    while (_monthNameTaken(formatMonthName(candidate)) && guard < 60) {
+      candidate = _addMonths(candidate, 1);
+      guard++;
+    }
+    return candidate;
+  }
+
   void _resetForm() {
-    selectedBudgetDate = DateTime.now();
-    monthName = _currentMonthName;
+    final targetDate = _nextAvailableMonthDate();
+    selectedBudgetDate = targetDate;
+    monthName = formatMonthName(targetDate);
     _hasUnsavedBudgetChanges = false;
     microExpenseCategories = List.from(kDefaultCategories);
     assets = [
@@ -313,9 +339,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  static const _monthNamesEs = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+
+  /// Formatea [date] como "Mes yyyy" en español. Si los datos de locale de
+  /// `intl` no están inicializados (p. ej. en tests o muy al inicio del
+  /// arranque de la app) recurre a una tabla local en vez de lanzar.
   String formatMonthName(DateTime date) {
-    final raw = _monthFormatter.format(DateTime(date.year, date.month));
-    return raw[0].toUpperCase() + raw.substring(1);
+    try {
+      final raw = _monthFormatter.format(DateTime(date.year, date.month));
+      return raw[0].toUpperCase() + raw.substring(1);
+    } catch (_) {
+      return '${_monthNamesEs[date.month - 1]} ${date.year}';
+    }
   }
 
   void setMonthFromDate(DateTime date) {
@@ -627,29 +675,7 @@ class AppState extends ChangeNotifier {
   // ── Auto-save helpers ─────────────────────────────────────────────────────
   static final _monthFormatter = DateFormat('MMMM yyyy', 'es_CO');
 
-  String get _currentMonthName {
-    final now = DateTime.now();
-    try {
-      final raw = _monthFormatter.format(now);
-      return raw[0].toUpperCase() + raw.substring(1);
-    } catch (_) {
-      const months = [
-        'Enero',
-        'Febrero',
-        'Marzo',
-        'Abril',
-        'Mayo',
-        'Junio',
-        'Julio',
-        'Agosto',
-        'Septiembre',
-        'Octubre',
-        'Noviembre',
-        'Diciembre',
-      ];
-      return '${months[now.month - 1]} ${now.year}';
-    }
-  }
+  String get _currentMonthName => formatMonthName(DateTime.now());
 
   void _ensureMonthName() {
     ensureCurrentMonthLoaded();
@@ -897,7 +923,22 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<bool> deleteBudget(String monthSlug) async {
+  /// Elimina [budget] del historial. Si nunca llegó a sincronizarse con el
+  /// servidor (no tiene `monthSlug`) solo existe localmente, así que se
+  /// borra de la caché y de la cola de sincronización pendiente sin llamar
+  /// al backend; de lo contrario se elimina en el servidor (o se encola
+  /// para reintentar si falla la red).
+  Future<bool> deleteBudget(MonthlyBudget budget) async {
+    final monthSlug = budget.monthSlug;
+    if (monthSlug == null || monthSlug.isEmpty) {
+      await _cancelPendingSaveForMonth(budget.monthName);
+      final key = budget.monthName.trim().toLowerCase();
+      savedBudgets.removeWhere((b) => b.monthName.trim().toLowerCase() == key);
+      await _writeBudgetsCache(savedBudgets);
+      notifyListeners();
+      return true;
+    }
+
     try {
       await apiService.deleteBudget(monthSlug);
       savedBudgets.removeWhere((b) => b.monthSlug == monthSlug);
@@ -913,6 +954,22 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return true;
     }
+  }
+
+  Future<void> _cancelPendingSaveForMonth(String monthName) async {
+    final ops = await _readPendingOpsCache();
+    final monthKey = monthName.trim().toLowerCase();
+    ops.removeWhere((op) {
+      if (op['type'] != 'save') return false;
+      final rawBudget = op['budget'];
+      if (rawBudget is! Map) return false;
+      final pendingMonth = (rawBudget['monthName'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      return pendingMonth == monthKey;
+    });
+    await _writePendingOpsCache(ops);
   }
 
   Future<void> _writeBudgetsCache(List<MonthlyBudget> budgets) async {
@@ -1148,5 +1205,400 @@ class AppState extends ChangeNotifier {
 
     await loadBudgets();
     return migrated;
+  }
+
+  // ── Share/Import Budget Functions ───────────────────────────────────────────
+  String exportBudgetToText(MonthlyBudget budget) {
+    final buffer = StringBuffer();
+    
+    buffer.writeln('=== PRESUPUESTO: ${budget.monthName} ===');
+    buffer.writeln('Balance neto: ${formatCurrencyFull(budget.netWorth)}');
+    buffer.writeln('');
+    
+    // Activos
+    buffer.writeln('💰 ACTIVOS:');
+    for (final asset in budget.assets) {
+      if (asset.amount > 0) {
+        buffer.writeln('  ${asset.name}: ${formatCurrencyFull(asset.amount)}');
+      }
+    }
+    
+    // Me deben
+    buffer.writeln('');
+    buffer.writeln('📥 ME DEBEN:');
+    for (final owed in budget.owed) {
+      if (owed.amount > 0) {
+        buffer.writeln('  ${owed.name}: ${formatCurrencyFull(owed.amount)}');
+      }
+    }
+    
+    // Gastos fijos
+    buffer.writeln('');
+    buffer.writeln('💸 GASTOS FIJOS:');
+    for (final liability in budget.liabilities) {
+      if (liability is Liability && liability.amount > 0) {
+        buffer.writeln('  ${liability.name}: ${formatCurrencyFull(liability.amount)}');
+      }
+    }
+    
+    // Tarjetas de crédito
+    buffer.writeln('');
+    buffer.writeln('💳 TARJETAS DE CRÉDITO:');
+    for (final card in budget.creditCards) {
+      if (card.creditLimit > 0 || card.paymentTotal > 0) {
+        buffer.writeln('  ${card.name}:');
+        buffer.writeln('    Límite: ${formatCurrencyFull(card.creditLimit)}');
+        buffer.writeln('    Saldo: ${formatCurrencyFull(card.balance)}');
+        buffer.writeln('    Pago total: ${formatCurrencyFull(card.paymentTotal)}');
+        buffer.writeln('    Pago mínimo: ${formatCurrencyFull(card.minimum)}');
+      }
+    }
+    
+    // Gastos hormiga
+    if (budget.microExpenses.isNotEmpty) {
+      buffer.writeln('');
+      buffer.writeln('🐜 GASTOS HORMIGA:');
+      for (final expense in budget.microExpenses) {
+        if (expense.amount > 0) {
+          final dateStr = DateFormat('dd/MM/yyyy').format(expense.createdAt);
+          buffer.writeln('  ${dateStr} - ${expense.category}: ${formatCurrencyFull(expense.amount)} (${expense.paymentMethod})');
+        }
+      }
+    }
+    
+    // Resumen
+    buffer.writeln('');
+    buffer.writeln('📊 RESUMEN:');
+    buffer.writeln('  Total activos: ${formatCurrencyFull(budget.totalAssets)}');
+    buffer.writeln('  Total gastos: ${formatCurrencyFull(budget.totalLiabilities)}');
+    buffer.writeln('  Balance neto: ${formatCurrencyFull(budget.netWorth)}');
+    
+    // Footer
+    buffer.writeln('');
+    buffer.writeln('---');
+    buffer.writeln('Exportado desde Finanzas Personales');
+    
+    return buffer.toString();
+  }
+
+  Future<MonthlyBudget?> importBudgetFromText(String text) async {
+    try {
+      // Crear un presupuesto básico desde el texto
+      // Esta es una implementación simplificada que parsea el formato de texto
+      
+      final lines = text.split('\n');
+      final assets = <BudgetItem>[];
+      final owed = <BudgetItem>[];
+      final liabilities = <dynamic>[];
+      final creditCards = <CreditCard>[];
+      final microExpenses = <MicroExpense>[];
+      
+      String? monthName;
+      String currentSection = '';
+      
+      for (final line in lines) {
+        final trimmed = line.trim();
+        
+        // Detectar sección
+        if (trimmed.contains('PRESUPUESTO:')) {
+          monthName = trimmed.split('PRESUPUESTO:')[1].trim().replaceAll('===', '').trim();
+          continue;
+        }
+        
+        if (trimmed.contains('ACTIVOS:')) {
+          currentSection = 'assets';
+          continue;
+        }
+        
+        if (trimmed.contains('ME DEBEN:')) {
+          currentSection = 'owed';
+          continue;
+        }
+        
+        if (trimmed.contains('GASTOS FIJOS:')) {
+          currentSection = 'liabilities';
+          continue;
+        }
+        
+        if (trimmed.contains('TARJETAS DE CRÉDITO:')) {
+          currentSection = 'creditCards';
+          continue;
+        }
+        
+        if (trimmed.contains('GASTOS HORMIGA:')) {
+          currentSection = 'microExpenses';
+          continue;
+        }
+
+        if (trimmed.contains('RESUMEN:')) {
+          // Cierra cualquier sección anterior para que las líneas del
+          // resumen (Total activos, Total gastos, Balance neto) no se
+          // interpreten como datos de la última sección vista.
+          currentSection = '';
+          continue;
+        }
+
+        // Parsear líneas según la sección actual
+        if (trimmed.isEmpty || trimmed.startsWith('---') || trimmed.contains('RESUMEN') || trimmed.contains('Exportado')) {
+          continue;
+        }
+        
+        if (currentSection == 'assets' && trimmed.contains(':')) {
+          final parts = trimmed.split(':');
+          if (parts.length >= 2) {
+            final name = parts[0].trim();
+            final amountStr = parts[1].trim().replaceAll('\$', '').replaceAll('.', '').replaceAll(',', '.');
+            final amount = double.tryParse(amountStr) ?? 0;
+            if (name.isNotEmpty && amount > 0) {
+              assets.add(BudgetItem(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: name,
+                amount: amount,
+              ));
+            }
+          }
+        }
+        
+        if (currentSection == 'owed' && trimmed.contains(':')) {
+          final parts = trimmed.split(':');
+          if (parts.length >= 2) {
+            final name = parts[0].trim();
+            final amountStr = parts[1].trim().replaceAll('\$', '').replaceAll('.', '').replaceAll(',', '.');
+            final amount = double.tryParse(amountStr) ?? 0;
+            if (name.isNotEmpty && amount > 0) {
+              owed.add(BudgetItem(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: name,
+                amount: amount,
+              ));
+            }
+          }
+        }
+        
+        if (currentSection == 'liabilities' && trimmed.contains(':')) {
+          final parts = trimmed.split(':');
+          if (parts.length >= 2) {
+            final name = parts[0].trim();
+            final amountStr = parts[1].trim().replaceAll('\$', '').replaceAll('.', '').replaceAll(',', '.');
+            final amount = double.tryParse(amountStr) ?? 0;
+            if (name.isNotEmpty && amount > 0) {
+              liabilities.add(Liability(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: name,
+                amount: amount,
+              ));
+            }
+          }
+        }
+        
+        if (currentSection == 'creditCards' && trimmed.contains(':')) {
+          // Formato exportado (exportBudgetToText):
+          //   Tarjeta N:
+          //     Límite: $x
+          //     Saldo: $x
+          //     Pago total: $x
+          //     Pago mínimo: $x
+          final parts = trimmed.split(':');
+          final label = parts[0].trim();
+          final valueStr = parts.length > 1 ? parts[1].trim() : '';
+          const fieldsByLabel = {
+            'límite': 'creditLimit',
+            'limite': 'creditLimit',
+            'saldo': 'balance',
+            'pago total': 'paymentTotal',
+            'pago mínimo': 'minimum',
+            'pago minimo': 'minimum',
+          };
+          final field = fieldsByLabel[label.toLowerCase()];
+          if (field != null && creditCards.isNotEmpty) {
+            final amountStr = valueStr
+                .replaceAll('\$', '')
+                .replaceAll('.', '')
+                .replaceAll(',', '.');
+            final amount = double.tryParse(amountStr) ?? 0;
+            final card = creditCards.last;
+            switch (field) {
+              case 'creditLimit':
+                card.creditLimit = amount;
+                break;
+              case 'balance':
+                card.balance = amount;
+                break;
+              case 'paymentTotal':
+                card.paymentTotal = amount;
+                break;
+              case 'minimum':
+                card.minimum = amount;
+                break;
+            }
+          } else if (field == null && label.isNotEmpty) {
+            // Línea con el nombre de la tarjeta (ej: "Tarjeta N:").
+            creditCards.add(CreditCard(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              name: label,
+              creditLimit: 0,
+              balance: 0,
+              minimum: 0,
+              paymentTotal: 0,
+            ));
+          }
+        }
+
+        if (currentSection == 'microExpenses' && trimmed.contains('-')) {
+          // Formato: "dd/MM/yyyy - Categoria: $cantidad (método)"
+          try {
+            final parts = trimmed.split('-');
+            if (parts.length >= 2) {
+              final expensePart = parts[1].trim();
+              final expenseParts = expensePart.split(':');
+              if (expenseParts.length >= 2) {
+                final category = expenseParts[0].trim();
+                final amountMethodPart = expenseParts[1].trim();
+                final amountMatch = RegExp(r'[\d.,]+').firstMatch(amountMethodPart);
+                if (amountMatch != null) {
+                  final amountStr = amountMatch.group(0)!.replaceAll('\$', '').replaceAll('.', '').replaceAll(',', '.');
+                  final amount = double.tryParse(amountStr) ?? 0;
+                  
+                  // Extraer método de pago
+                  final methodMatch = RegExp(r'\(([^)]+)\)').firstMatch(amountMethodPart);
+                  final paymentMethod = methodMatch?.group(1) ?? 'Efectivo';
+                  
+                  if (category.isNotEmpty && amount > 0) {
+                    microExpenses.add(MicroExpense(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      amount: amount,
+                      category: category,
+                      paymentMethod: paymentMethod,
+                      createdAt: DateTime.now(),
+                    ));
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('Error parsing micro expense line: $e');
+          }
+        }
+      }
+      
+      // Si no se pudo importar nada, retornar null
+      if (assets.isEmpty && owed.isEmpty && liabilities.isEmpty && microExpenses.isEmpty) {
+        return null;
+      }
+      
+      // Crear el presupuesto importado
+      final importedBudget = MonthlyBudget(
+        monthName: monthName ?? _currentMonthName,
+        assets: assets.isNotEmpty ? assets : [
+          BudgetItem(id: '1', name: 'Nequi', amount: 0),
+          BudgetItem(id: '2', name: 'Uala', amount: 0),
+          BudgetItem(id: '3', name: 'Davivienda', amount: 0),
+          BudgetItem(id: '4', name: 'Efectivo', amount: 0),
+        ],
+        owed: owed.isNotEmpty ? owed : [BudgetItem(id: '5', name: 'Me deben', amount: 0)],
+        liabilities: liabilities.isNotEmpty ? liabilities : [
+          Liability(id: '8', name: 'Moto', amount: 0),
+          Liability(id: '9', name: 'Arriendo', amount: 0),
+          Liability(id: '10', name: 'Servicios', amount: 0),
+          Liability(id: '11', name: 'Mercado', amount: 0),
+        ],
+        creditCards: creditCards.isNotEmpty ? creditCards : [
+          CreditCard(
+            id: '6',
+            name: 'Tarjeta N',
+            creditLimit: 0,
+            balance: 0,
+            minimum: 0,
+            paymentTotal: 0,
+          ),
+        ],
+        microExpenses: microExpenses,
+        microExpenseCategories: List.from(kDefaultCategories),
+        totalAssets: assets.fold(0.0, (sum, a) => sum + a.amount) + owed.fold(0.0, (sum, o) => sum + o.amount),
+        totalLiabilities: liabilities.fold(0.0, (sum, l) => sum + (l is Liability ? l.amount : 0)) + 
+                        creditCards.fold(0.0, (sum, c) => sum + c.paymentTotal) +
+                        microExpenses.fold(0.0, (sum, m) => sum + m.amount),
+        netWorth: 0, // Se recalculará
+        partialNetWorth: 0, // Se recalculará
+        createdAt: DateTime.now().toIso8601String(),
+        authorId: authService.currentUser?.uid,
+        authorName: authService.currentUser?.displayName,
+        authorEmail: authService.currentUser?.email,
+      );
+      
+      // Recalcular net worth
+      final finalNetWorth = importedBudget.totalAssets - importedBudget.totalLiabilities;
+      final finalPartialNetWorth = importedBudget.totalAssets - 
+                                   (liabilities.fold(0.0, (sum, l) => sum + (l is Liability ? l.amount : 0)) + 
+                                    creditCards.fold(0.0, (sum, c) => sum + c.minimum) +
+                                    microExpenses.fold(0.0, (sum, m) => sum + m.amount));
+      
+      return MonthlyBudget(
+        monthName: importedBudget.monthName,
+        assets: importedBudget.assets,
+        owed: importedBudget.owed,
+        liabilities: importedBudget.liabilities,
+        creditCards: importedBudget.creditCards,
+        microExpenses: importedBudget.microExpenses,
+        microExpenseCategories: importedBudget.microExpenseCategories,
+        totalAssets: importedBudget.totalAssets,
+        totalLiabilities: importedBudget.totalLiabilities,
+        netWorth: finalNetWorth,
+        partialNetWorth: finalPartialNetWorth,
+        createdAt: importedBudget.createdAt,
+        authorId: importedBudget.authorId,
+        authorName: importedBudget.authorName,
+        authorEmail: importedBudget.authorEmail,
+      );
+      
+    } catch (e) {
+      debugPrint('Error importing budget from text: $e');
+      return null;
+    }
+  }
+
+  String exportBudgetToJson(MonthlyBudget budget) {
+    final exportData = {
+      'version': '1.0',
+      'exportedAt': DateTime.now().toIso8601String(),
+      'budget': budget.toJson(),
+    };
+    return jsonEncode(exportData);
+  }
+
+  Future<MonthlyBudget?> importBudgetFromJson(String jsonStr) async {
+    try {
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is! Map) return null;
+      
+      final budgetData = decoded['budget'];
+      if (budgetData is! Map) return null;
+      
+      final budget = MonthlyBudget.fromJson(Map<String, dynamic>.from(budgetData));
+      
+      // Asignar el usuario actual como autor
+      final importedBudget = MonthlyBudget(
+        monthName: budget.monthName,
+        assets: budget.assets,
+        owed: budget.owed,
+        liabilities: budget.liabilities,
+        creditCards: budget.creditCards,
+        microExpenses: budget.microExpenses,
+        microExpenseCategories: budget.microExpenseCategories,
+        totalAssets: budget.totalAssets,
+        totalLiabilities: budget.totalLiabilities,
+        netWorth: budget.netWorth,
+        partialNetWorth: budget.partialNetWorth,
+        createdAt: DateTime.now().toIso8601String(),
+        authorId: authService.currentUser?.uid,
+        authorName: authService.currentUser?.displayName,
+        authorEmail: authService.currentUser?.email,
+      );
+      
+      return importedBudget;
+    } catch (e) {
+      debugPrint('Error importing budget from JSON: $e');
+      return null;
+    }
   }
 }

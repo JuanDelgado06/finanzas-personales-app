@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../state/app_state.dart';
 import '../models/monthly_budget.dart';
 import '../theme/app_theme.dart';
@@ -27,10 +31,46 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
 
     return Scaffold(
       backgroundColor: kAppBg,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFA050910),
+        elevation: 0,
+        title: const Text(
+          'Historial de presupuestos',
+          style: TextStyle(
+            color: kTextMain,
+            fontWeight: FontWeight.w600,
+            fontSize: 17,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const PhosphorIcon(
+              PhosphorIconsLight.arrowSquareIn,
+              color: kAccent,
+            ),
+            onPressed: () => _importBudgetFromFile(context, state),
+            tooltip: 'Importar presupuesto',
+          ),
+        ],
+      ),
       body: state.loadingBudgets
           ? const Center(child: CircularProgressIndicator(color: kAccent))
           : state.savedBudgets.isEmpty
-          ? const _EmptyState()
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const _EmptyState(),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: ElevatedButton.icon(
+                    onPressed: () => _importBudgetFromFile(context, state),
+                    icon: const PhosphorIcon(PhosphorIconsLight.arrowSquareIn),
+                    label: const Text('Importar presupuesto'),
+                  ),
+                ),
+              ],
+            )
           : RefreshIndicator(
               color: kAccent,
               backgroundColor: kSurface,
@@ -53,6 +93,7 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
                     ),
                     onLoad: () =>
                         _loadBudget(context, state, state.savedBudgets[index]),
+                    onShare: () => _shareBudget(context, state, state.savedBudgets[index]),
                   );
                 },
               ),
@@ -86,19 +127,7 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              if (budget.monthSlug == null || budget.monthSlug!.isEmpty) {
-                if (!context.mounted || !messenger.mounted) return;
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Error: el presupuesto no tiene identificador',
-                    ),
-                    backgroundColor: kDanger,
-                  ),
-                );
-                return;
-              }
-              final ok = await state.deleteBudget(budget.monthSlug!);
+              final ok = await state.deleteBudget(budget);
               if (!context.mounted || !messenger.mounted) return;
               final queued = state.hasPendingSync;
               messenger.showSnackBar(
@@ -223,6 +252,94 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
       ),
     );
   }
+
+  void _shareBudget(
+    BuildContext context,
+    AppState state,
+    MonthlyBudget budget,
+  ) {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final textData = state.exportBudgetToText(budget);
+      SharePlus.instance.share(
+        ShareParams(
+          text: textData,
+          subject: 'Presupuesto: ${budget.monthName}',
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted || !messenger.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error al compartir: $e'),
+          backgroundColor: kDanger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _importBudgetFromFile(BuildContext context, AppState state) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    final file = await FilePicker.pickFile(
+      dialogTitle: 'Selecciona un archivo de presupuesto (.json)',
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+    );
+    if (file == null) return; // El usuario canceló.
+
+    String jsonStr;
+    try {
+      final bytes = await file.readAsBytes();
+      jsonStr = utf8.decode(bytes);
+    } catch (e) {
+      if (!context.mounted || !messenger.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No se pudo leer el archivo: $e'),
+          backgroundColor: kDanger,
+        ),
+      );
+      return;
+    }
+
+    final imported = await state.importBudgetFromJson(jsonStr);
+    if (imported == null) {
+      if (!context.mounted || !messenger.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo importar el presupuesto. Verifica que sea un archivo exportado desde esta app.',
+          ),
+          backgroundColor: kDanger,
+        ),
+      );
+      return;
+    }
+
+    // Aplicar el presupuesto importado directamente.
+    state.applyBudget(imported);
+
+    // Guardar el presupuesto importado.
+    try {
+      await state.saveBudget();
+      if (!context.mounted || !messenger.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Presupuesto importado correctamente'),
+          backgroundColor: kSuccess,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted || !messenger.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar: $e'),
+          backgroundColor: kDanger,
+        ),
+      );
+    }
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -261,11 +378,13 @@ class _BudgetCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onDuplicate;
   final VoidCallback onLoad;
+  final VoidCallback onShare;
   const _BudgetCard({
     required this.budget,
     required this.onDelete,
     required this.onDuplicate,
     required this.onLoad,
+    required this.onShare,
   });
 
   @override
@@ -344,6 +463,26 @@ class _BudgetCard extends StatelessWidget {
                       child: PhosphorIcon(
                         PhosphorIconsLight.copy,
                         color: kAccent,
+                        size: 17,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onShare,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: kSuccess.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Center(
+                      child: PhosphorIcon(
+                        PhosphorIconsLight.shareNetwork,
+                        color: kSuccess,
                         size: 17,
                       ),
                     ),

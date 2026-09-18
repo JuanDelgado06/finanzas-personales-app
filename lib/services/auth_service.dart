@@ -2,18 +2,40 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-class AuthService {
+/// Contrato de autenticación usado por [AppState] y la UI.
+///
+/// Se define como interfaz (en vez de exponer [FirebaseAuthService]
+/// directamente) para poder inyectar una implementación falsa en tests
+/// unitarios sin necesidad de inicializar Firebase.
+abstract class AuthService {
+  Stream<User?> get authStateChanges;
+  User? get currentUser;
+  bool get isAnonymous;
+
+  Future<String?> getIdToken({bool forceRefresh = false});
+  Future<UserCredential> signInWithGoogle();
+  Future<UserCredential> signInAnonymously();
+  Future<UserCredential> linkAnonymousWithGoogle();
+  Future<void> signOut();
+}
+
+class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
+  @override
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+  @override
   User? get currentUser => _auth.currentUser;
+  @override
   bool get isAnonymous => _auth.currentUser?.isAnonymous ?? true;
 
+  @override
   Future<String?> getIdToken({bool forceRefresh = false}) async {
     return await _auth.currentUser?.getIdToken(forceRefresh);
   }
 
+  @override
   Future<UserCredential> signInWithGoogle() async {
     try {
       final googleUser = await _googleSignIn.signIn();
@@ -37,10 +59,12 @@ class AuthService {
     }
   }
 
+  @override
   Future<UserCredential> signInAnonymously() async {
     return await _auth.signInAnonymously();
   }
 
+  @override
   Future<UserCredential> linkAnonymousWithGoogle() async {
     try {
       final googleUser = await _googleSignIn.signIn();
@@ -87,6 +111,7 @@ class AuthService {
     }
   }
 
+  @override
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();

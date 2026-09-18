@@ -29,7 +29,7 @@ void main() async {
 class FinanzasApp extends StatelessWidget {
   const FinanzasApp({super.key});
 
-  static final AuthService _authService = AuthService();
+  static final AuthService _authService = FirebaseAuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -168,10 +168,11 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final isLoadingMonth = context.watch<AppState>().isLoadingMonth;
+    final showAppBar = _currentIndex != 3; // No mostrar AppBar en la pantalla de historial
 
     return Scaffold(
       backgroundColor: kAppBg,
-      appBar: AppBar(
+      appBar: showAppBar ? AppBar(
         backgroundColor: const Color(0xFA050910),
         elevation: 0,
         title: Text(
@@ -191,7 +192,7 @@ class _HomeShellState extends State<HomeShell> {
             onPressed: () => _showProfileSheet(context),
           ),
         ],
-      ),
+      ) : null,
       body: isLoadingMonth
           ? const Center(child: CircularProgressIndicator(color: kAccent))
           : _screens[_currentIndex],

@@ -11,7 +11,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final AuthService _auth = AuthService();
+  final AuthService _auth = FirebaseAuthService();
   bool _loading = false;
   String? _error;
 

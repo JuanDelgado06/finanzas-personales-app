@@ -1,10 +1,14 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/monthly_budget.dart';
 
 class ApiService {
-  static const String _baseUrl = 'https://finanzas-jj.vercel.app';
+  // Configurable en build/run con:
+  //   flutter run --dart-define=API_BASE_URL=https://mi-entorno.vercel.app
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://finanzas-jj.vercel.app',
+  );
 
   final Future<String?> Function() _getIdToken;
 
@@ -56,9 +60,6 @@ class ApiService {
     );
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-      debugPrint(
-        'getBudgets raw: ${response.body.substring(0, response.body.length.clamp(0, 2000))}',
-      );
       final List<dynamic> data = _extractBudgetList(decoded);
       return data.map((b) => MonthlyBudget.fromJson(b)).toList();
     }
@@ -70,18 +71,12 @@ class ApiService {
   Future<MonthlyBudget> saveBudget(MonthlyBudget budget) async {
     final headers = await _authHeaders();
     final payload = budget.toJson();
-    debugPrint(
-      'saveBudget payload: ${jsonEncode(payload).substring(0, jsonEncode(payload).length.clamp(0, 2000))}',
-    );
     final response = await http.post(
       Uri.parse('$_baseUrl/api/budgets'),
       headers: headers,
       body: jsonEncode(payload),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint(
-        'saveBudget raw response: ${response.body.substring(0, response.body.length.clamp(0, 2000))}',
-      );
       final decoded = jsonDecode(response.body);
       final budgetMap = _extractBudgetObject(decoded);
       return MonthlyBudget.fromJson(budgetMap);

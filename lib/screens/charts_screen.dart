@@ -1,12 +1,77 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:printing/printing.dart';
+import '../models/monthly_budget.dart';
+import '../services/budget_pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
-class ChartsScreen extends StatelessWidget {
+class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
+
+  @override
+  State<ChartsScreen> createState() => _ChartsScreenState();
+}
+
+class _ChartsScreenState extends State<ChartsScreen> {
+  final _pieChartKey = GlobalKey();
+  bool _exportingPdf = false;
+
+  Future<Uint8List?> _capturePieChart() async {
+    final boundary =
+        _pieChartKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return null;
+    final image = await boundary.toImage(pixelRatio: 2.5);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData?.buffer.asUint8List();
+  }
+
+  Future<void> _exportPdf(AppState state, bool hasChart) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _exportingPdf = true);
+    try {
+      final pieChartImage = hasChart ? await _capturePieChart() : null;
+      final budget = MonthlyBudget(
+        monthName: state.monthName,
+        assets: state.assets,
+        owed: state.owed,
+        liabilities: state.liabilities,
+        creditCards: state.creditCards,
+        microExpenses: state.microExpenses,
+        microExpenseCategories: state.microExpenseCategories,
+        totalAssets: state.totalAssets,
+        totalLiabilities: state.totalLiabilities,
+        netWorth: state.netWorth,
+        partialNetWorth: state.partialNetWorth,
+        createdAt: DateTime.now().toIso8601String(),
+      );
+      final pdfBytes = await buildBudgetPdf(
+        budget: budget,
+        pieChartImage: pieChartImage,
+      );
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: 'presupuesto_${state.monthName.trim().toLowerCase().replaceAll(' ', '_')}.pdf',
+        subject: 'Presupuesto: ${state.monthName}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar PDF: $e'),
+          backgroundColor: kDanger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _exportingPdf = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +90,22 @@ class ChartsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          OutlinedButton.icon(
+            onPressed: _exportingPdf ? null : () => _exportPdf(state, sorted.isNotEmpty),
+            icon: _exportingPdf
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: kAccent),
+                  )
+                : const PhosphorIcon(PhosphorIconsLight.filePdf, color: kAccent),
+            label: Text(_exportingPdf ? 'Generando PDF…' : 'Exportar PDF'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: kAccent),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+          const SizedBox(height: 16),
           // Balance card
           _BalanceCard(state: state),
           const SizedBox(height: 16),
@@ -40,9 +121,12 @@ class ChartsScreen extends StatelessWidget {
               title: 'Gastos Hormiga por Categoría',
               icon: PhosphorIconsLight.chartPieSlice,
               iconColor: kWarning,
-              child: _MicroPieChart(
-                data: sorted,
-                total: state.totalMicroExpenses,
+              child: RepaintBoundary(
+                key: _pieChartKey,
+                child: _MicroPieChart(
+                  data: sorted,
+                  total: state.totalMicroExpenses,
+                ),
               ),
             ),
             const SizedBox(height: 16),
