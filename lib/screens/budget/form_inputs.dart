@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/amount_format.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../theme/app_theme.dart';
@@ -22,7 +23,7 @@ class AmountInputState extends State<AmountInput> {
   void initState() {
     super.initState();
     _ctrl = TextEditingController(
-      text: widget.initial == 0 ? '' : widget.initial.toStringAsFixed(0),
+      text: formatAmountInput(widget.initial),
     );
   }
 
@@ -35,10 +36,10 @@ class AmountInputState extends State<AmountInput> {
   @override
   void didUpdateWidget(covariant AmountInput oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextText = widget.initial == 0
-        ? ''
-        : widget.initial.toStringAsFixed(0);
-    if (_ctrl.text == nextText) return;
+    // Compara por valor (no por texto) para no pisar lo que el usuario está
+    // escribiendo, p. ej. "12." o el formato con comas.
+    if (parseAmount(_ctrl.text) == widget.initial) return;
+    final nextText = formatAmountInput(widget.initial);
     _ctrl.value = TextEditingValue(
       text: nextText,
       selection: TextSelection.collapsed(offset: nextText.length),
@@ -50,12 +51,10 @@ class AmountInputState extends State<AmountInput> {
     return TextField(
       controller: _ctrl,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-      ],
+      inputFormatters: [ThousandsFormatter()],
       style: TextStyle(color: kTextMain, fontSize: widget.compact ? 13 : 14),
       textAlign: TextAlign.right,
-      onChanged: (v) => widget.onChanged(double.tryParse(v) ?? 0),
+      onChanged: (v) => widget.onChanged(parseAmount(v)),
       decoration: InputDecoration(
         hintText: '0',
         hintStyle: const TextStyle(color: kTextSoft),

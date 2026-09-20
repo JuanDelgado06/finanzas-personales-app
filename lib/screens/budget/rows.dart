@@ -55,8 +55,16 @@ class AssetRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 6, left: 2),
               child: Text(
-                'Disponible: ${formatCurrencyFull(availableAmount)} · Gastado: ${formatCurrencyFull(spentFromThisAsset)}',
-                style: const TextStyle(color: kTextSoft, fontSize: 11),
+                availableAmount < 0
+                    ? 'Te pasaste: ${formatCurrencyFull(availableAmount)} · Gastado: ${formatCurrencyFull(spentFromThisAsset)}'
+                    : 'Disponible: ${formatCurrencyFull(availableAmount)} · Gastado: ${formatCurrencyFull(spentFromThisAsset)}',
+                style: TextStyle(
+                  color: availableAmount < 0 ? kDanger : kTextSoft,
+                  fontWeight: availableAmount < 0
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                  fontSize: 11,
+                ),
               ),
             ),
         ],

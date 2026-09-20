@@ -25,6 +25,7 @@ class AppState extends ChangeNotifier {
   // Form state
   static const String _budgetsCacheKeyPrefix = 'saved_budgets_cache_v1';
   static const String _pendingOpsCacheKeyPrefix = 'pending_budget_ops_v1';
+  static const String _draftCacheKeyPrefix = 'budget_draft_v1';
   bool _syncingPendingOps = false;
   int _pendingOpsCount = 0;
   bool _hasUnsavedBudgetChanges = false;
@@ -66,6 +67,8 @@ class AppState extends ChangeNotifier {
   String get _budgetsCacheKey => '$_budgetsCacheKeyPrefix:$_userCacheKey';
 
   String get _pendingOpsCacheKey => '$_pendingOpsCacheKeyPrefix:$_userCacheKey';
+
+  String get _draftCacheKey => '$_draftCacheKeyPrefix:$_userCacheKey';
 
   // Auto-save state
   bool isSaving = false;
@@ -142,6 +145,16 @@ class AppState extends ChangeNotifier {
             : available;
         remainingById[item.id] = available - applied;
         remainingExpense -= applied;
+      }
+      // Si el gasto supera lo disponible, el excedente se refleja como saldo
+      // negativo en el último activo con ese nombre (p. ej. efectivo de 50,000
+      // y gasto de 51,000 → -1,000) en vez de quedarse en 0. Así el excedente
+      // ya está descontado de los activos y no se cuenta otra vez como pasivo
+      // en _uncoveredMicroExpenses.
+      if (remainingExpense > 0) {
+        final last = bucket.last;
+        remainingById[last.id] =
+            (remainingById[last.id] ?? 0) - remainingExpense;
       }
     }
 
@@ -336,6 +349,7 @@ class AppState extends ChangeNotifier {
 
   void resetForm() {
     _resetForm();
+    _clearDraftCache();
     notifyListeners();
   }
 
@@ -442,12 +456,14 @@ class AppState extends ChangeNotifier {
         : List.from(kDefaultCategories);
 
     _hasUnsavedBudgetChanges = true;
+    _writeDraftCache();
     notifyListeners();
     return true;
   }
 
   void markBudgetDirty({bool notify = true}) {
     _hasUnsavedBudgetChanges = true;
+    _writeDraftCache();
     if (notify) notifyListeners();
   }
 
@@ -682,6 +698,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _scheduleSave() {
+    _writeDraftCache();
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(seconds: 2), _autoSave);
   }
@@ -712,6 +729,7 @@ class AppState extends ChangeNotifier {
       await apiService.saveBudget(budget);
       lastSaveOk = true;
       lastSaveError = null;
+      await _clearDraftCache();
       await _syncPendingOperations(refreshBudgets: true);
     } catch (e) {
       debugPrint('Auto-save error: $e');
@@ -720,6 +738,7 @@ class AppState extends ChangeNotifier {
       await _enqueuePendingSave(budget);
       _upsertLocalBudget(budget);
       await _writeBudgetsCache(savedBudgets);
+      await _clearDraftCache();
       notifyListeners();
     } finally {
       isSaving = false;
@@ -757,6 +776,7 @@ class AppState extends ChangeNotifier {
       microExpenseCategories = List.from(budget.microExpenseCategories);
     }
     _hasUnsavedBudgetChanges = false;
+    _clearDraftCache();
     notifyListeners();
   }
 
@@ -832,6 +852,7 @@ class AppState extends ChangeNotifier {
         : List.from(kDefaultCategories);
 
     _hasUnsavedBudgetChanges = true;
+    _writeDraftCache();
     notifyListeners();
   }
 
@@ -868,20 +889,43 @@ class AppState extends ChangeNotifier {
   }
 
   /// Carga los presupuestos y aplica automáticamente el más reciente.
+  ///
+  /// Si había un borrador local sin guardar (p. ej. la app se cerró antes de
+  /// tocar "Guardar" o antes de que el autoguardado con debounce llegara a
+  /// disparar), se reaplica encima para no perder esos cambios.
   Future<void> loadAndAutoApply() async {
     isLoadingMonth = true;
     notifyListeners();
     try {
+      final draft = await _readDraftCache();
       await loadBudgets();
-      if (savedBudgets.isEmpty) return;
-      // Ordenar por createdAt descendente y tomar el primero
-      final sorted = List<MonthlyBudget>.from(savedBudgets)
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      applyBudget(sorted.first);
+      if (savedBudgets.isNotEmpty) {
+        // Ordenar por createdAt descendente y tomar el primero
+        final sorted = List<MonthlyBudget>.from(savedBudgets)
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        applyBudget(sorted.first);
+      }
+      if (draft != null) {
+        _applyDraft(draft);
+      }
     } finally {
       isLoadingMonth = false;
       notifyListeners();
     }
+  }
+
+  void _applyDraft(MonthlyBudget draft) {
+    selectedBudgetDate = DateTime.now();
+    monthName = draft.monthName;
+    assets = List.from(draft.assets);
+    owed = List.from(draft.owed);
+    liabilities = List.from(draft.liabilities);
+    creditCards = List.from(draft.creditCards);
+    microExpenses = List.from(draft.microExpenses);
+    if (draft.microExpenseCategories.isNotEmpty) {
+      microExpenseCategories = List.from(draft.microExpenseCategories);
+    }
+    _hasUnsavedBudgetChanges = true;
   }
 
   Future<bool> saveBudget() async {
@@ -909,6 +953,7 @@ class AppState extends ChangeNotifier {
       lastSaveOk = true;
       lastSaveError = null;
       clearBudgetDirty(notify: false);
+      await _clearDraftCache();
       return true;
     } catch (e) {
       debugPrint('Error saving budget: $e');
@@ -918,6 +963,7 @@ class AppState extends ChangeNotifier {
       _upsertLocalBudget(budget);
       await _writeBudgetsCache(savedBudgets);
       clearBudgetDirty(notify: false);
+      await _clearDraftCache();
       notifyListeners();
       return false;
     }
@@ -999,6 +1045,66 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error reading budgets cache: $e');
       return [];
+    }
+  }
+
+  /// Instantánea del formulario actual (aún no guardado explícitamente).
+  ///
+  /// Se escribe en cada edición para que un cierre repentino de la app no
+  /// pierda cambios que todavía no pasaron por el botón "Guardar" ni por el
+  /// autoguardado con debounce (que depende de red/autenticación).
+  MonthlyBudget _currentFormSnapshot() {
+    return MonthlyBudget(
+      monthName: monthName,
+      assets: assets,
+      owed: owed,
+      liabilities: liabilities,
+      creditCards: creditCards,
+      microExpenses: microExpenses,
+      microExpenseCategories: microExpenseCategories,
+      totalAssets: totalAssets,
+      totalLiabilities: totalLiabilities,
+      netWorth: netWorth,
+      partialNetWorth: partialNetWorth,
+      createdAt: DateTime.now().toIso8601String(),
+      authorId: authService.currentUser?.uid,
+      authorName: authService.currentUser?.displayName,
+      authorEmail: authService.currentUser?.email,
+    );
+  }
+
+  Future<void> _writeDraftCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _draftCacheKey,
+        jsonEncode(_currentFormSnapshot().toJson()),
+      );
+    } catch (e) {
+      debugPrint('Error writing draft cache: $e');
+    }
+  }
+
+  Future<MonthlyBudget?> _readDraftCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_draftCacheKey);
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return MonthlyBudget.fromJson(Map<String, dynamic>.from(decoded));
+    } catch (e) {
+      debugPrint('Error reading draft cache: $e');
+      return null;
+    }
+  }
+
+  Future<void> _clearDraftCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_draftCacheKey);
+    } catch (e) {
+      debugPrint('Error clearing draft cache: $e');
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/amount_format.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
@@ -101,7 +102,7 @@ class CreditCardRowState extends State<CreditCardRow> {
 
   void _applyPayment(AppState state) {
     final messenger = ScaffoldMessenger.of(context);
-    final amount = double.tryParse(_abonoCtrl.text) ?? 0;
+    final amount = parseAmount(_abonoCtrl.text);
 
     if (_abonoAssetName.trim().isEmpty) {
       messenger.showSnackBar(
@@ -590,11 +591,7 @@ class CreditCardRowState extends State<CreditCardRow> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d*'),
-                          ),
-                        ],
+                        inputFormatters: [ThousandsFormatter()],
                         style: const TextStyle(color: kTextMain, fontSize: 13),
                         textAlign: TextAlign.right,
                         decoration: InputDecoration(

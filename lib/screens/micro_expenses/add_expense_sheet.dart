@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/amount_format.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../state/app_state.dart';
@@ -29,7 +30,7 @@ class AddExpenseSheetState extends State<AddExpenseSheet> {
     if (widget.editIndex != null) {
       final item = widget.state.microExpenses[widget.editIndex!];
       _amountCtrl = TextEditingController(
-        text: item.amount == 0 ? '' : item.amount.toStringAsFixed(0),
+        text: formatAmountInput(item.amount),
       );
       _selectedCategory = cats.contains(item.category)
           ? item.category
@@ -51,7 +52,7 @@ class AddExpenseSheetState extends State<AddExpenseSheet> {
   }
 
   void _confirm() {
-    final amount = double.tryParse(_amountCtrl.text) ?? 0;
+    final amount = parseAmount(_amountCtrl.text);
     if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -157,11 +158,7 @@ class AddExpenseSheetState extends State<AddExpenseSheet> {
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d*'),
-                              ),
-                            ],
+                            inputFormatters: [ThousandsFormatter()],
                             style: const TextStyle(
                               color: kTextMain,
                               fontSize: 44,

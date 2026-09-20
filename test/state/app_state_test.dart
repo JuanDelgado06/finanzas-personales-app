@@ -179,6 +179,64 @@ void main() {
     });
   });
 
+  group('Gasto que supera el efectivo disponible', () {
+    MicroExpense gasto(double amount, String method) => MicroExpense(
+      id: 'g${amount.toInt()}$method',
+      amount: amount,
+      category: 'Otros',
+      paymentMethod: method,
+      createdAt: DateTime(2026, 9, 1),
+    );
+
+    test('50,000 en efectivo y gasto de 51,000 queda en -1,000', () {
+      final state = AppState(authService: FakeAuthService());
+      state.assets = [BudgetItem(id: 'e', name: 'Efectivo', amount: 50000)];
+      state.microExpenses = [gasto(51000, 'Efectivo')];
+
+      expect(state.availableAmountByItemId['e'], -1000);
+    });
+
+    test('el exceso no se cuenta dos veces (activos negativos, sin pasivo extra)', () {
+      final state = AppState(authService: FakeAuthService());
+      state.assets = [BudgetItem(id: 'e', name: 'Efectivo', amount: 50000)];
+      state.microExpenses = [gasto(51000, 'Efectivo')];
+
+      expect(state.totalAssets, -1000);
+      expect(state.totalLiabilities, 0);
+      expect(state.netWorth, -1000);
+    });
+
+    test('sin exceso el saldo no cambia de comportamiento', () {
+      final state = AppState(authService: FakeAuthService());
+      state.assets = [BudgetItem(id: 'e', name: 'Efectivo', amount: 50000)];
+      state.microExpenses = [gasto(20000, 'Efectivo')];
+
+      expect(state.availableAmountByItemId['e'], 30000);
+      expect(state.netWorth, 30000);
+    });
+
+    test('gasto con método sin activo sigue contando como pasivo', () {
+      final state = AppState(authService: FakeAuthService());
+      state.assets = [BudgetItem(id: 'e', name: 'Efectivo', amount: 50000)];
+      state.microExpenses = [gasto(5000, 'Otro medio')];
+
+      expect(state.totalLiabilities, 5000);
+      expect(state.netWorth, 45000);
+    });
+
+    test('varios activos con el mismo nombre: el exceso va al último', () {
+      final state = AppState(authService: FakeAuthService());
+      state.assets = [
+        BudgetItem(id: 'a', name: 'Efectivo', amount: 10000),
+        BudgetItem(id: 'b', name: 'Efectivo', amount: 5000),
+      ];
+      state.microExpenses = [gasto(16000, 'Efectivo')];
+
+      expect(state.availableAmountByItemId['a'], 0);
+      expect(state.availableAmountByItemId['b'], -1000);
+    });
+  });
+
   group('Nuevo mes no debe sobrescribir meses ya guardados', () {
     test('resetForm elige el primer mes que todavía no tiene presupuesto', () {
       final state = AppState(authService: FakeAuthService());

@@ -93,7 +93,9 @@ class ApiService {
       headers: headers,
     );
     if (response.statusCode != 200) {
-      throw Exception('Error eliminando presupuesto: ${response.statusCode}');
+      throw Exception(
+        'Error eliminando presupuesto: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -37,6 +38,7 @@ class FinanzasApp extends StatelessWidget {
       create: (_) => AppState(authService: _authService),
       child: MaterialApp(
         title: 'Finanzas Personales',
+        scaffoldMessengerKey: FirebaseMessagingService.messengerKey,
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
         localizationsDelegates: const [
@@ -51,7 +53,6 @@ class FinanzasApp extends StatelessWidget {
         ],
         home: StreamBuilder<User?>(
           stream: _authService.authStateChanges,
-          initialData: _authService.currentUser,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
@@ -59,7 +60,15 @@ class FinanzasApp extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator(color: kAccent)),
               );
             }
-            if (snapshot.data != null) {
+            // No confiamos en snapshot.data: en Android el primer evento de
+            // authStateChanges puede llegar como null (aún restaurando la
+            // sesión persistida) antes del evento real con el usuario. Eso
+            // hacía parpadear el login incluso con sesión guardada, y si el
+            // usuario tocaba "continuar sin cuenta" en ese instante se creaba
+            // una cuenta anónima nueva que pisaba la anterior. currentUser se
+            // restaura de forma síncrona apenas termina Firebase.initializeApp,
+            // así que es la fuente de verdad aquí.
+            if (_authService.currentUser != null) {
               return const _HomeGateway();
             }
             return const LoginScreen();
@@ -132,6 +141,8 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppState>().loadAndAutoApply();
+      final uid = context.read<AppState>().authService.currentUser?.uid;
+      if (uid != null) FirebaseMessagingService.instance.onUserSignedIn(uid);
     });
   }
 
@@ -315,11 +326,22 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                 ),
               ),
             const SizedBox(height: 8),
+            if (kDebugMode)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _runNotificationTest(context),
+                  icon: const PhosphorIcon(PhosphorIconsLight.bell),
+                  label: const Text('Probar notificaciones'),
+                ),
+              ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () async {
                   Navigator.pop(context);
+                  FirebaseMessagingService.instance.onUserSignedOut();
                   await auth.signOut();
                 },
                 icon: const PhosphorIcon(
@@ -341,6 +363,33 @@ class _ProfileSheetState extends State<_ProfileSheet> {
       ),
     );
   }
+}
+
+Future<void> _runNotificationTest(BuildContext context) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final report = FirebaseMessagingService.instance.diagnose();
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: kSurface,
+      title: const Text('Prueba de notificaciones'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: FutureBuilder<String>(
+          future: report,
+          builder: (_, snap) => SingleChildScrollView(
+            child: snap.hasData
+                ? SelectableText(
+                    snap.data!,
+                    style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                  )
+                : const Center(child: CircularProgressIndicator(color: kAccent)),
+          ),
+        ),
+      ),
+      actions: [TextButton(onPressed: navigator.pop, child: const Text('Cerrar'))],
+    ),
+  );
 }
 
 class _NavItem {
