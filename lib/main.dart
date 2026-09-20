@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -5,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -24,7 +27,50 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await FirebaseMessagingService.instance.initialize();
+  await _restoreSession();
   runApp(const FinanzasApp());
+}
+
+const _kHadSessionKey = 'had_auth_session';
+
+/// En Android, authStateChanges puede emitir un null inicial (y currentUser
+/// seguir en null) mientras Firebase restaura la sesión persistida. Si en el
+/// último uso había sesión, esperamos al usuario real antes de mostrar UI para
+/// no caer en el login. El flag se limpia solo con un signOut explícito.
+Future<void> _restoreSession() async {
+  final prefs = await SharedPreferences.getInstance();
+  final auth = FirebaseAuth.instance;
+  if ((prefs.getBool(_kHadSessionKey) ?? false) && auth.currentUser == null) {
+    try {
+      await auth
+          .authStateChanges()
+          .firstWhere((u) => u != null)
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {
+      // Sin red/sesión inválida: se muestra el login.
+    }
+    // Firebase no recuperó la sesión (en algunos Android se pierde al cerrar
+    // la app). Si el usuario usaba Google, la cuenta sigue en el dispositivo:
+    // reingresamos en silencio, sin mostrar selector de cuenta.
+    if (auth.currentUser == null) {
+      try {
+        final g = await GoogleSignIn().signInSilently();
+        if (g != null) {
+          final ga = await g.authentication;
+          await auth.signInWithCredential(GoogleAuthProvider.credential(
+            accessToken: ga.accessToken,
+            idToken: ga.idToken,
+          ));
+        }
+      } catch (e) {
+        debugPrint('Silent Google sign-in failed: $e');
+      }
+    }
+  }
+  debugPrint('Auth restore: currentUser=${auth.currentUser?.uid}');
+  auth.authStateChanges().listen((u) {
+    if (u != null) prefs.setBool(_kHadSessionKey, true);
+  });
 }
 
 class FinanzasApp extends StatelessWidget {
@@ -51,36 +97,94 @@ class FinanzasApp extends StatelessWidget {
           Locale('es'),
           Locale('en'),
         ],
-        home: StreamBuilder<User?>(
-          stream: _authService.authStateChanges,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                backgroundColor: kAppBg,
-                body: Center(child: CircularProgressIndicator(color: kAccent)),
-              );
-            }
-            // No confiamos en snapshot.data: en Android el primer evento de
-            // authStateChanges puede llegar como null (aún restaurando la
-            // sesión persistida) antes del evento real con el usuario. Eso
-            // hacía parpadear el login incluso con sesión guardada, y si el
-            // usuario tocaba "continuar sin cuenta" en ese instante se creaba
-            // una cuenta anónima nueva que pisaba la anterior. currentUser se
-            // restaura de forma síncrona apenas termina Firebase.initializeApp,
-            // así que es la fuente de verdad aquí.
-            if (_authService.currentUser != null) {
-              return const _HomeGateway();
-            }
-            return const LoginScreen();
-          },
-        ),
+        home: _AuthGate(authService: _authService),
       ),
     );
   }
 }
 
+/// Decide entre login y app según la sesión, y muestra una pantalla de
+/// transición breve cuando el usuario inicia o cierra sesión para que el
+/// cambio se note (además reconstruye la app con el usuario nuevo).
+class _AuthGate extends StatefulWidget {
+  final AuthService authService;
+  const _AuthGate({required this.authService});
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  StreamSubscription<User?>? _sub;
+  Timer? _timer;
+  String? _uid;
+  String? _transitionMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _uid = widget.authService.currentUser?.uid;
+    _sub = widget.authService.authStateChanges.listen(_onAuthChanged);
+  }
+
+  void _onAuthChanged(User? user) {
+    final newUid = user?.uid;
+    if (newUid == _uid) return;
+    final signedIn = newUid != null;
+    setState(() {
+      _uid = newUid;
+      _transitionMessage = signedIn ? 'Iniciando sesión…' : 'Cerrando sesión…';
+    });
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 1100), () {
+      if (mounted) setState(() => _transitionMessage = null);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // currentUser es la fuente de verdad (ver _restoreSession): el primer
+    // evento de authStateChanges en Android puede llegar como null.
+    final Widget child;
+    if (_transitionMessage != null) {
+      child = Scaffold(
+        key: const ValueKey('auth-transition'),
+        backgroundColor: kAppBg,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: kAccent),
+              const SizedBox(height: 20),
+              Text(
+                _transitionMessage!,
+                style: const TextStyle(color: kTextSoft, fontSize: 15),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (widget.authService.currentUser != null) {
+      child = _HomeGateway(key: ValueKey('home-$_uid'));
+    } else {
+      child = const LoginScreen(key: ValueKey('login'));
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      child: child,
+    );
+  }
+}
+
 class _HomeGateway extends StatefulWidget {
-  const _HomeGateway();
+  const _HomeGateway({super.key});
 
   @override
   State<_HomeGateway> createState() => _HomeGatewayState();
@@ -342,6 +446,8 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                 onPressed: () async {
                   Navigator.pop(context);
                   FirebaseMessagingService.instance.onUserSignedOut();
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool(_kHadSessionKey, false);
                   await auth.signOut();
                 },
                 icon: const PhosphorIcon(

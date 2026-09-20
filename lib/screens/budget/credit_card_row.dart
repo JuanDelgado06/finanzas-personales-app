@@ -547,6 +547,7 @@ class CreditCardRowState extends State<CreditCardRow> {
                     Expanded(
                       flex: 5,
                       child: DropdownButtonFormField<String>(
+                        isExpanded: true,
                         value: _abonoAssetName.isEmpty ? null : _abonoAssetName,
                         items: assetNames
                             .map(

@@ -237,46 +237,46 @@ void main() {
     });
   });
 
-  group('Nuevo mes no debe sobrescribir meses ya guardados', () {
-    test('resetForm elige el primer mes que todavía no tiene presupuesto', () {
-      final state = AppState(authService: FakeAuthService());
-      final now = DateTime.now();
-      final currentMonthName = state.formatMonthName(now);
-      final nextMonthName = state.formatMonthName(
-        DateTime(now.year, now.month + 1),
-      );
+  group('Nuevo presupuesto no debe sobrescribir uno ya guardado', () {
+    DateTime today() {
+      final n = DateTime.now();
+      return DateTime(n.year, n.month, n.day);
+    }
 
-      state.savedBudgets = [_budgetFor(currentMonthName)];
-
-      state.resetForm();
-
-      expect(state.monthName, isNot(currentMonthName));
-      expect(state.monthName, nextMonthName);
-    });
-
-    test('si el mes actual está libre, resetForm se queda en el mes actual', () {
+    test('el nombre incluye el día', () {
       final state = AppState(authService: FakeAuthService());
       state.savedBudgets = [];
 
       state.resetForm();
 
-      expect(state.monthName, state.formatMonthName(DateTime.now()));
+      expect(state.monthName, state.formatMonthName(today()));
+      expect(state.monthName.startsWith('${today().day} '), isTrue);
     });
 
-    test('salta varios meses consecutivos ya guardados', () {
+    test('si ya hay uno creado hoy, resetForm usa el día siguiente', () {
       final state = AppState(authService: FakeAuthService());
-      final now = DateTime.now();
-      state.savedBudgets = [
-        _budgetFor(state.formatMonthName(DateTime(now.year, now.month))),
-        _budgetFor(state.formatMonthName(DateTime(now.year, now.month + 1))),
-      ];
+      final t = today();
+      state.savedBudgets = [_budgetFor(state.formatMonthName(t))];
 
       state.resetForm();
 
       expect(
         state.monthName,
-        state.formatMonthName(DateTime(now.year, now.month + 2)),
+        state.formatMonthName(DateTime(t.year, t.month, t.day + 1)),
       );
+    });
+
+    test('un presupuesto de otro día del mismo mes no bloquea el nombre', () {
+      final state = AppState(authService: FakeAuthService());
+      final t = today();
+      final other = t.day == 1 ? 2 : 1;
+      state.savedBudgets = [
+        _budgetFor(state.formatMonthName(DateTime(t.year, t.month, other))),
+      ];
+
+      state.resetForm();
+
+      expect(state.monthName, state.formatMonthName(t));
     });
   });
 

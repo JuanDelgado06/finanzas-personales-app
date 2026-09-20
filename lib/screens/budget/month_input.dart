@@ -18,13 +18,12 @@ class MonthInputState extends State<MonthInput> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(now.year, now.month),
+      initialDate: now,
       firstDate: DateTime(now.year - 5, 1),
       lastDate: DateTime(now.year + 5, 12),
-      helpText: 'Selecciona el mes',
+      helpText: 'Selecciona la fecha',
       cancelText: 'Cancelar',
       confirmText: 'Elegir',
-      initialDatePickerMode: DatePickerMode.year,
     );
     if (picked == null) return;
     widget.state.setMonthFromDate(picked);

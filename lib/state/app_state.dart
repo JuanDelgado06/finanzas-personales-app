@@ -297,26 +297,23 @@ class AppState extends ChangeNotifier {
     return savedBudgets.any((b) => b.monthName.trim().toLowerCase() == key);
   }
 
-  DateTime _addMonths(DateTime date, int months) {
-    final totalMonths = date.month - 1 + months;
-    return DateTime(date.year + totalMonths ~/ 12, totalMonths % 12 + 1);
-  }
-
-  /// Devuelve el primer mes (a partir de hoy) que todavía no tiene un
-  /// presupuesto guardado, para que "Nuevo mes" nunca reutilice el nombre de
-  /// un mes ya guardado y termine sobrescribiéndolo al autoguardar.
-  DateTime _nextAvailableMonthDate() {
-    var candidate = DateTime(DateTime.now().year, DateTime.now().month);
+  /// Devuelve la primera fecha (a partir de hoy) cuyo nombre todavía no tiene
+  /// un presupuesto guardado. El nombre incluye el día, así que solo hay
+  /// colisión si ya se creó otro presupuesto el mismo día; en ese caso se
+  /// avanza al día siguiente para no sobrescribirlo al autoguardar.
+  DateTime _nextAvailableDate() {
+    final now = DateTime.now();
+    var candidate = DateTime(now.year, now.month, now.day);
     var guard = 0;
-    while (_monthNameTaken(formatMonthName(candidate)) && guard < 60) {
-      candidate = _addMonths(candidate, 1);
+    while (_monthNameTaken(formatMonthName(candidate)) && guard < 366) {
+      candidate = DateTime(candidate.year, candidate.month, candidate.day + 1);
       guard++;
     }
     return candidate;
   }
 
   void _resetForm() {
-    final targetDate = _nextAvailableMonthDate();
+    final targetDate = _nextAvailableDate();
     selectedBudgetDate = targetDate;
     monthName = formatMonthName(targetDate);
     _hasUnsavedBudgetChanges = false;
@@ -368,16 +365,19 @@ class AppState extends ChangeNotifier {
     'Diciembre',
   ];
 
-  /// Formatea [date] como "Mes yyyy" en español. Si los datos de locale de
+  /// Formatea [date] como "d Mes yyyy" en español (incluye el día para que dos
+  /// presupuestos del mismo mes no compartan nombre). Si los datos de locale de
   /// `intl` no están inicializados (p. ej. en tests o muy al inicio del
   /// arranque de la app) recurre a una tabla local en vez de lanzar.
   String formatMonthName(DateTime date) {
+    String month;
     try {
       final raw = _monthFormatter.format(DateTime(date.year, date.month));
-      return raw[0].toUpperCase() + raw.substring(1);
+      month = raw[0].toUpperCase() + raw.substring(1);
     } catch (_) {
-      return '${_monthNamesEs[date.month - 1]} ${date.year}';
+      month = _monthNamesEs[date.month - 1];
     }
+    return '${date.day} $month ${date.year}';
   }
 
   void setMonthFromDate(DateTime date) {
@@ -689,7 +689,7 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Auto-save helpers ─────────────────────────────────────────────────────
-  static final _monthFormatter = DateFormat('MMMM yyyy', 'es_CO');
+  static final _monthFormatter = DateFormat('MMMM', 'es_CO');
 
   String get _currentMonthName => formatMonthName(DateTime.now());
 
