@@ -106,6 +106,15 @@ Future<Uint8List> buildBudgetPdf({
             budget.partialNetWorth,
             budget.partialNetWorth >= 0 ? _success : _danger,
           ),
+          if (budget.totalSavings > 0) ...[
+            _Row('Ahorro apartado', budget.totalSavings, _saving),
+            _Row(
+              'Disponible para gastar',
+              budget.netWorth - budget.totalSavings,
+              budget.netWorth - budget.totalSavings >= 0 ? _success : _danger,
+              bold: true,
+            ),
+          ],
         ]),
         pw.SizedBox(height: 18),
         _sectionTitle('Indicadores clave'),
@@ -152,6 +161,7 @@ const _danger = PdfColor.fromInt(0xFFFF4D6A);
 const _success = PdfColor.fromInt(0xFF00D37F);
 const _warning = PdfColor.fromInt(0xFFA78BFA);
 const _amber = PdfColor.fromInt(0xFFF59E0B);
+const _saving = PdfColor.fromInt(0xFF38BDF8);
 
 const List<PdfColor> _pieColors = [
   _accent,

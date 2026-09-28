@@ -101,6 +101,37 @@ class BudgetScreen extends StatelessWidget {
               ),
               SliverToBoxAdapter(
                 child: Section(
+                  title: 'Ahorro',
+                  subtitle:
+                      'Aparta dinero para tus metas. Se resta de lo disponible para gastar.',
+                  iconData: PhosphorIconsLight.piggyBank,
+                  iconColor: kSaving,
+                  onAddLabel: '+ Meta',
+                  onAdd: state.addSaving,
+                  child: Column(
+                    children: state.savings
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => AssetRow(
+                            key: ValueKey(e.value.id),
+                            index: e.key,
+                            item: e.value,
+                            availableAmount: e.value.amount,
+                            onRemove: () => state.removeSaving(e.key),
+                            onChanged: (name, amount) => state.updateSaving(
+                              e.key,
+                              name: name,
+                              amount: amount,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Section(
                   title: 'Gastos Fijos',
                   subtitle: 'Pagos recurrentes como servicios, arriendos, etc.',
                   iconData: PhosphorIconsLight.receipt,
@@ -322,9 +353,10 @@ class BudgetScreen extends StatelessWidget {
         backgroundColor: kSurface,
         title: const Text('Nuevo mes', style: TextStyle(color: kTextMain)),
         content: const Text(
-          '¿Limpiar todos los datos del formulario para empezar un nuevo mes?\n\n'
-          'Los presupuestos guardados no se eliminarán: se te asignará automáticamente '
-          'el primer mes que todavía no tengas guardado.',
+          'Se guardará el presupuesto actual y se creará uno nuevo a partir de él.\n\n'
+          'Tus cuentas empiezan con lo que les quedaba disponible, y se mantienen '
+          'los gastos fijos, las tarjetas y el ahorro. Solo se vacían los gastos '
+          'hormiga, que quedan en el presupuesto anterior.',
           style: TextStyle(color: kTextSoft),
         ),
         actions: [
@@ -337,17 +369,20 @@ class BudgetScreen extends StatelessWidget {
               Navigator.pop(context);
               // Refresca la lista de presupuestos guardados antes de elegir el
               // mes nuevo, para no chocar con datos obsoletos en caché.
+              if (state.hasUnsavedBudgetChanges) {
+                await state.saveBudget();
+              }
               await state.loadBudgets();
-              state.resetForm();
+              state.startNewPeriod();
               if (!context.mounted || !messenger.mounted) return;
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text('Formulario listo para ${state.monthName}'),
+                  content: Text('Nuevo presupuesto: ${state.monthName}'),
                   backgroundColor: kAccent,
                 ),
               );
             },
-            child: const Text('Limpiar', style: TextStyle(color: kAccent)),
+            child: const Text('Crear', style: TextStyle(color: kAccent)),
           ),
         ],
       ),
@@ -361,6 +396,7 @@ class BudgetScreen extends StatelessWidget {
         monthName: state.monthName,
         assets: state.assets,
         owed: state.owed,
+        savings: state.savings,
         liabilities: state.liabilities,
         creditCards: state.creditCards,
         microExpenses: state.microExpenses,

@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../state/app_state.dart';
 import '../models/monthly_budget.dart';
 import '../theme/app_theme.dart';
+import 'compare_budgets_screen.dart';
 
 class SavedBudgetsScreen extends StatefulWidget {
   const SavedBudgetsScreen({super.key});
@@ -43,6 +44,24 @@ class _SavedBudgetsScreenState extends State<SavedBudgetsScreen> {
           ),
         ),
         actions: [
+          if (state.savedBudgets.length >= 2)
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CompareBudgetsScreen(),
+                ),
+              ),
+              icon: const PhosphorIcon(
+                PhosphorIconsLight.arrowsLeftRight,
+                color: kAccent,
+                size: 18,
+              ),
+              label: const Text(
+                'Comparar',
+                style: TextStyle(color: kAccent),
+              ),
+            ),
           IconButton(
             icon: const PhosphorIcon(
               PhosphorIconsLight.arrowSquareIn,

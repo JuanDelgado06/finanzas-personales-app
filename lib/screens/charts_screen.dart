@@ -41,6 +41,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         monthName: state.monthName,
         assets: state.assets,
         owed: state.owed,
+        savings: state.savings,
         liabilities: state.liabilities,
         creditCards: state.creditCards,
         microExpenses: state.microExpenses,
@@ -245,6 +246,7 @@ class _KpiHighlightsCard extends StatelessWidget {
         ? kWarning
         : kSuccess;
     final mostActiveDay = state.mostActiveMicroExpenseDay;
+    final highestSpendingDay = state.highestSpendingDay;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -277,6 +279,13 @@ class _KpiHighlightsCard extends StatelessWidget {
               label: 'Día con más gastos registrados',
               value:
                   '${mostActiveDay.key} · ${mostActiveDay.value} ${mostActiveDay.value == 1 ? 'gasto' : 'gastos'}',
+              valueColor: kTextMain,
+            ),
+          if (highestSpendingDay != null)
+            _KpiRow(
+              label: 'Día en que más se gastó',
+              value:
+                  '${highestSpendingDay.key} · ${formatCurrency(highestSpendingDay.value)}',
               valueColor: kTextMain,
             ),
         ],

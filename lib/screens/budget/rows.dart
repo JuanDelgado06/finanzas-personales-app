@@ -13,6 +13,7 @@ class AssetRow extends StatelessWidget {
   final void Function(String name, double amount) onChanged;
 
   const AssetRow({
+    super.key,
     required this.index,
     required this.item,
     required this.availableAmount,

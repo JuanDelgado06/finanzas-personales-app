@@ -12,6 +12,7 @@ const Color kAccent = Color(0xFF00D37F);
 const Color kDanger = Color(0xFFFF4D6A);
 const Color kSuccess = Color(0xFF00D37F);
 const Color kWarning = Color(0xFFA78BFA);
+const Color kSaving = Color(0xFF38BDF8);
 
 ThemeData buildAppTheme() {
   return ThemeData(

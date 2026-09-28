@@ -34,6 +34,7 @@ class AppState extends ChangeNotifier {
   DateTime selectedBudgetDate = DateTime.now();
   List<BudgetItem> assets = [];
   List<BudgetItem> owed = [];
+  List<BudgetItem> savings = []; // metas de ahorro apartadas del periodo
   List<dynamic> liabilities = []; // only Liability
   List<CreditCard> creditCards = [
     CreditCard(
@@ -217,6 +218,13 @@ class AppState extends ChangeNotifier {
   double get netWorth => totalAssets - totalLiabilities;
   double get partialNetWorth => totalAssets - partialLiabilities;
   double get savingsGoal => totalAssets - partialLiabilities;
+
+  /// Total apartado en metas de ahorro. No se descuenta del balance neto
+  /// (el dinero sigue siendo tuyo), solo de lo disponible para gastar.
+  double get totalSavings => savings.fold(0.0, (sum, s) => sum + s.amount);
+
+  /// Lo que queda para gastar sin tocar el ahorro: balance neto menos metas.
+  double get availableToSpend => netWorth - totalSavings;
   double get budgetUsagePercent {
     if (totalAssets <= 0) return 0;
     final percent = (totalLiabilities / totalAssets) * 100;
@@ -254,6 +262,30 @@ class AppState extends ChangeNotifier {
       ..sort((a, b) {
         final byCount = b.value.compareTo(a.value);
         if (byCount != 0) return byCount;
+        return b.key.compareTo(a.key);
+      });
+
+    final topDay = sortedDays.first;
+    return MapEntry(_formatMicroExpenseDay(topDay.key), topDay.value);
+  }
+
+  MapEntry<String, double>? get highestSpendingDay {
+    if (microExpenses.isEmpty) return null;
+
+    final totalsByDay = <DateTime, double>{};
+    for (final expense in microExpenses) {
+      final day = DateTime(
+        expense.createdAt.year,
+        expense.createdAt.month,
+        expense.createdAt.day,
+      );
+      totalsByDay[day] = (totalsByDay[day] ?? 0) + expense.amount;
+    }
+
+    final sortedDays = totalsByDay.entries.toList()
+      ..sort((a, b) {
+        final byAmount = b.value.compareTo(a.value);
+        if (byAmount != 0) return byAmount;
         return b.key.compareTo(a.key);
       });
 
@@ -325,6 +357,7 @@ class AppState extends ChangeNotifier {
       BudgetItem(id: '4', name: 'Efectivo', amount: 0),
     ];
     owed = [BudgetItem(id: '5', name: 'Me deben', amount: 0)];
+    savings = [];
     liabilities = [
       Liability(id: '8', name: 'Moto', amount: 0),
       Liability(id: '9', name: 'Arriendo', amount: 0),
@@ -342,6 +375,44 @@ class AppState extends ChangeNotifier {
       ),
     ];
     microExpenses = [];
+  }
+
+  List<BudgetItem> _cloneItems(List<BudgetItem> items) =>
+      items.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+
+  /// Empieza un periodo nuevo partiendo del actual en vez de un formulario
+  /// vacío. Cada cuenta arranca con lo que le quedaba disponible (saldo menos
+  /// los gastos hormiga pagados con ella). Se conservan lo que me deben, los
+  /// gastos fijos, las tarjetas, las metas de ahorro y las categorías. Solo se
+  /// vacían los gastos hormiga, que pertenecen al periodo anterior.
+  ///
+  /// Llamar después de guardar el presupuesto actual, para que
+  /// [_nextAvailableDate] no le asigne su mismo nombre.
+  void startNewPeriod() {
+    final available = availableAmountByItemId;
+    final targetDate = _nextAvailableDate();
+    selectedBudgetDate = targetDate;
+    monthName = formatMonthName(targetDate);
+    assets = assets
+        .map(
+          (a) => BudgetItem(
+            id: a.id,
+            name: a.name,
+            amount: available[a.id] ?? a.amount,
+          ),
+        )
+        .toList();
+    owed = _cloneItems(owed);
+    savings = _cloneItems(savings);
+    liabilities = liabilities
+        .whereType<Liability>()
+        .map((l) => Liability.fromJson(l.toJson()))
+        .toList();
+    creditCards = creditCards
+        .map((c) => CreditCard.fromJson(c.toJson()))
+        .toList();
+    microExpenses = [];
+    markBudgetDirty();
   }
 
   void resetForm() {
@@ -426,6 +497,7 @@ class AppState extends ChangeNotifier {
     monthName = target.isEmpty ? _currentMonthName : target;
     assets = source.assets.map((a) => BudgetItem.fromJson(a.toJson())).toList();
     owed = source.owed.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+    savings = _cloneItems(source.savings);
     final clonedLiabilities = <dynamic>[];
     for (final l in source.liabilities) {
       if (l is Liability) {
@@ -513,6 +585,28 @@ class AppState extends ChangeNotifier {
 
   void removeOwed(int index) {
     owed.removeAt(index);
+    markBudgetDirty();
+  }
+
+  void updateSaving(int index, {String? name, double? amount}) {
+    if (name != null) savings[index].name = name;
+    if (amount != null) savings[index].amount = amount;
+    markBudgetDirty();
+  }
+
+  void addSaving() {
+    savings.add(
+      BudgetItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: '',
+        amount: 0,
+      ),
+    );
+    markBudgetDirty();
+  }
+
+  void removeSaving(int index) {
+    savings.removeAt(index);
     markBudgetDirty();
   }
 
@@ -607,7 +701,8 @@ class AppState extends ChangeNotifier {
     required String category,
     required String paymentMethod,
   }) {
-    microExpenses.add(
+    microExpenses.insert(
+      0,
       MicroExpense(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         amount: amount,
@@ -709,6 +804,7 @@ class AppState extends ChangeNotifier {
       monthName: monthName,
       assets: assets,
       owed: owed,
+      savings: savings,
       liabilities: liabilities,
       creditCards: creditCards,
       microExpenses: microExpenses,
@@ -769,6 +865,7 @@ class AppState extends ChangeNotifier {
     monthName = budget.monthName;
     assets = List.from(budget.assets);
     owed = List.from(budget.owed);
+    savings = List.from(budget.savings);
     liabilities = List.from(budget.liabilities);
     creditCards = List.from(budget.creditCards);
     microExpenses = List.from(budget.microExpenses);
@@ -789,6 +886,7 @@ class AppState extends ChangeNotifier {
     monthName = target.isEmpty ? _currentMonthName : target;
     assets = budget.assets.map((a) => BudgetItem.fromJson(a.toJson())).toList();
     owed = budget.owed.map((a) => BudgetItem.fromJson(a.toJson())).toList();
+    savings = _cloneItems(budget.savings);
     final clonedLiabilities = <dynamic>[];
     for (final l in budget.liabilities) {
       if (l is Liability) {
@@ -919,6 +1017,7 @@ class AppState extends ChangeNotifier {
     monthName = draft.monthName;
     assets = List.from(draft.assets);
     owed = List.from(draft.owed);
+    savings = List.from(draft.savings);
     liabilities = List.from(draft.liabilities);
     creditCards = List.from(draft.creditCards);
     microExpenses = List.from(draft.microExpenses);
@@ -933,6 +1032,7 @@ class AppState extends ChangeNotifier {
       monthName: monthName,
       assets: assets,
       owed: owed,
+      savings: savings,
       liabilities: liabilities,
       creditCards: creditCards,
       microExpenses: microExpenses,
@@ -1058,6 +1158,7 @@ class AppState extends ChangeNotifier {
       monthName: monthName,
       assets: assets,
       owed: owed,
+      savings: savings,
       liabilities: liabilities,
       creditCards: creditCards,
       microExpenses: microExpenses,
@@ -1262,6 +1363,7 @@ class AppState extends ChangeNotifier {
       monthName: b.monthName,
       assets: b.assets,
       owed: b.owed,
+      savings: b.savings,
       liabilities: b.liabilities,
       creditCards: b.creditCards,
       microExpenses: b.microExpenses,
@@ -1687,6 +1789,7 @@ class AppState extends ChangeNotifier {
         monthName: budget.monthName,
         assets: budget.assets,
         owed: budget.owed,
+        savings: budget.savings,
         liabilities: budget.liabilities,
         creditCards: budget.creditCards,
         microExpenses: budget.microExpenses,

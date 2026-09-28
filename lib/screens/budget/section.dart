@@ -79,12 +79,18 @@ class SectionState extends State<Section> {
                             if (widget.onAddExtra != null)
                               _AddBtn(
                                 label: widget.onAddExtraLabel!,
-                                onTap: widget.onAddExtra!,
+                                onTap: () {
+                                  setState(() => _expanded = true);
+                                  widget.onAddExtra!();
+                                },
                               ),
                             const SizedBox(width: 4),
                             _AddBtn(
                               label: widget.onAddLabel,
-                              onTap: widget.onAdd,
+                              onTap: () {
+                                setState(() => _expanded = true);
+                                widget.onAdd();
+                              },
                             ),
                             const SizedBox(width: 4),
                             GestureDetector(

@@ -6,6 +6,8 @@ class MonthlyBudget {
   final String? monthSlug;
   final List<BudgetItem> assets;
   final List<BudgetItem> owed;
+  /// Metas de ahorro del periodo: dinero apartado que no se debe gastar.
+  final List<BudgetItem> savings;
   final List<dynamic> liabilities; // only Liability now
   final List<CreditCard> creditCards;
   final List<MicroExpense> microExpenses;
@@ -25,6 +27,7 @@ class MonthlyBudget {
     this.monthSlug,
     required this.assets,
     required this.owed,
+    this.savings = const [],
     required this.liabilities,
     required this.creditCards,
     required this.microExpenses,
@@ -38,6 +41,8 @@ class MonthlyBudget {
     this.authorName,
     this.authorEmail,
   });
+
+  double get totalSavings => savings.fold(0.0, (sum, s) => sum + s.amount);
 
   static String? _parseId(dynamic raw) {
     if (raw == null) return null;
@@ -83,6 +88,10 @@ class MonthlyBudget {
       monthSlug: json['monthSlug']?.toString(),
       assets: (json['assets'] as List? ?? []).map((a) => BudgetItem.fromJson(a)).toList(),
       owed: (json['owed'] as List? ?? []).map((a) => BudgetItem.fromJson(a)).toList(),
+      savings: (json['savings'] as List? ?? [])
+          .whereType<Map>()
+          .map((a) => BudgetItem.fromJson(Map<String, dynamic>.from(a)))
+          .toList(),
       liabilities: parsedLiabilities,
       creditCards: parsedCreditCards,
       microExpenses:
@@ -104,6 +113,7 @@ class MonthlyBudget {
         'monthName': monthName,
         'assets': assets.map((a) => a.toJson()).toList(),
         'owed': owed.map((a) => a.toJson()).toList(),
+        'savings': savings.map((a) => a.toJson()).toList(),
         'liabilities': [
           ...liabilities.map((l) {
             if (l is Liability) return l.toJson();
@@ -131,6 +141,7 @@ class MonthlyBudget {
         'totalLiabilities': totalLiabilities,
         'netWorth': netWorth,
         'partialNetWorth': partialNetWorth,
+        'totalSavings': totalSavings,
         'createdAt': createdAt,
         'authorId': authorId,
         'authorName': authorName,

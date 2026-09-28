@@ -337,4 +337,78 @@ void main() {
       expect(card.paymentTotal, 20000);
     });
   });
+
+  group('Ahorro por presupuesto', () {
+    test('el ahorro no cambia el balance neto pero sí lo disponible', () {
+      final state = AppState(authService: FakeAuthService());
+      state.assets = [BudgetItem(id: '1', name: 'Nequi', amount: 1000000)];
+      state.owed = [];
+      state.liabilities = [Liability(id: '2', name: 'Arriendo', amount: 400000)];
+      state.creditCards = [];
+      state.savings = [
+        BudgetItem(id: 's1', name: 'Emergencias', amount: 150000),
+        BudgetItem(id: 's2', name: 'Viaje', amount: 50000),
+      ];
+
+      expect(state.netWorth, 600000);
+      expect(state.totalSavings, 200000);
+      expect(state.availableToSpend, 400000);
+    });
+
+    test('las metas sobreviven toJson/fromJson y presupuestos viejos quedan vacíos', () {
+      final budget = MonthlyBudget(
+        monthName: 'Octubre',
+        assets: const [],
+        owed: const [],
+        savings: [BudgetItem(id: 's1', name: 'Emergencias', amount: 150000)],
+        liabilities: const [],
+        creditCards: const [],
+        microExpenses: const [],
+        microExpenseCategories: const [],
+        totalAssets: 0,
+        totalLiabilities: 0,
+        netWorth: 0,
+        partialNetWorth: 0,
+        createdAt: DateTime.now().toIso8601String(),
+      );
+
+      final roundTrip = MonthlyBudget.fromJson(budget.toJson());
+      expect(roundTrip.savings.single.name, 'Emergencias');
+      expect(roundTrip.totalSavings, 150000);
+
+      final legacy = MonthlyBudget.fromJson({'monthName': 'Viejo'});
+      expect(legacy.savings, isEmpty);
+    });
+
+    test('Nuevo mes parte del actual: saldos disponibles y sin gastos hormiga', () {
+      final state = AppState(authService: FakeAuthService());
+      state.monthName = '1 Septiembre 2026';
+      state.assets = [BudgetItem(id: '1', name: 'Nequi', amount: 500000)];
+      state.owed = [BudgetItem(id: '2', name: 'Juan', amount: 30000)];
+      state.liabilities = [Liability(id: '3', name: 'Arriendo', amount: 400000)];
+      state.creditCards = [];
+      state.savings = [BudgetItem(id: 's1', name: 'Emergencias', amount: 150000)];
+      state.addMicroExpenseDirect(
+        amount: 20000,
+        category: 'Comida',
+        paymentMethod: 'Nequi',
+      );
+      state.savedBudgets = [_budgetFor(state.formatMonthName(DateTime.now()))];
+      final previousSavings = state.savings;
+
+      state.startNewPeriod();
+
+      expect(state.monthName, isNot(state.formatMonthName(DateTime.now())));
+      expect(state.assets.single.name, 'Nequi');
+      expect(state.assets.single.amount, 480000);
+      expect(state.owed.single.amount, 30000);
+      expect((state.liabilities.single as Liability).amount, 400000);
+      expect(state.savings.single.amount, 150000);
+      expect(state.microExpenses, isEmpty);
+      expect(state.hasUnsavedBudgetChanges, isTrue);
+      // Es una copia: editar el mes nuevo no toca el anterior.
+      state.updateSaving(0, amount: 1);
+      expect(previousSavings.single.amount, 150000);
+    });
+  });
 }

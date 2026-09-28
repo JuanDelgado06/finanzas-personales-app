@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../budget/available_to_spend.dart';
 
 class MiniBalanceCard extends StatelessWidget {
   final AppState state;
@@ -139,6 +140,7 @@ class MiniBalanceCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    AvailableToSpendStrip(state: state),
                   ],
                 ),
               ),
